@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/500.css";
 import "@fontsource/manrope/600.css";
@@ -91,7 +92,6 @@ const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 const emptyTrashButton = getElement<HTMLButtonElement>("empty-trash-button");
 const searchInput = getElement<HTMLInputElement>("search-input");
 const sortSelect = getElement<HTMLSelectElement>("sort-select");
-const cancelScanButton = getElement<HTMLButtonElement>("cancel-scan-button");
 const selectCategoryButton = getElement<HTMLButtonElement>("select-category-button");
 let confirmAction: (() => void) | null = null;
 
@@ -116,10 +116,20 @@ void applySystemTheme();
 void refreshMetrics();
 window.setInterval(() => void refreshMetrics(), 3000);
 
-scanButton.addEventListener("click", () => void runScan());
-cancelScanButton.addEventListener("click", () => {
-  if (scanning) scanCancelled = true;
+scanButton.addEventListener("click", () => {
+  if (scanning) {
+    scanCancelled = true;
+  } else {
+    void runScan();
+  }
 });
+
+if (isTauri()) {
+  void listen<string>("scan-progress", (event) => {
+    scanProgressPath.textContent = event.payload;
+    scanProgressPath.title = event.payload;
+  });
+}
 selectCategoryButton.addEventListener("click", () => {
   const visible = visibleFindings();
   const allSelected = visible.length > 0 && visible.every((item) => selectedPaths.has(item.path));
@@ -235,6 +245,36 @@ function showToast(message: string): void {
 const scanOrder: FeatureKey[] = ["trash", "temp", "browser", "chat-media", "orphan", "large-old", "duplicates"];
 let scanCancelled = false;
 let scanning = false;
+let elapsedTimer = 0;
+let scanStartedAt = 0;
+
+const scanButtonLabel = getElement<HTMLSpanElement>("scan-button-label");
+const scanProgress = getElement<HTMLElement>("scan-progress");
+const scanProgressPath = getElement<HTMLSpanElement>("scan-progress-path");
+const scanProgressTime = getElement<HTMLSpanElement>("scan-progress-time");
+const iconPlay = scanButton.querySelector<SVGElement>(".icon-play")!;
+const iconStop = scanButton.querySelector<SVGElement>(".icon-stop")!;
+
+function setScanButtonState(running: boolean): void {
+  iconPlay.style.display = running ? "none" : "";
+  iconStop.style.display = running ? "" : "none";
+  scanButton.classList.toggle("is-running", running);
+  scanButtonLabel.textContent = running ? "Parar varredura" : "Iniciar varredura";
+}
+
+function startElapsedTimer(): void {
+  scanStartedAt = performance.now();
+  scanProgress.hidden = false;
+  scanProgressTime.textContent = "0,0s";
+  elapsedTimer = window.setInterval(() => {
+    scanProgressTime.textContent = `${((performance.now() - scanStartedAt) / 1000).toFixed(1).replace(".", ",")}s`;
+  }, 100);
+}
+
+function stopElapsedTimer(): void {
+  window.clearInterval(elapsedTimer);
+  scanProgress.hidden = true;
+}
 
 async function runScan(): Promise<void> {
   if (!isTauri()) {
@@ -244,9 +284,8 @@ async function runScan(): Promise<void> {
 
   scanning = true;
   scanCancelled = false;
-  scanButton.disabled = true;
+  setScanButtonState(true);
   resultsButton.disabled = true;
-  cancelScanButton.hidden = false;
   getElement("scan-visual").classList.add("is-scanning");
   getElement("system-status").classList.add("is-busy");
   findings = [];
@@ -254,6 +293,7 @@ async function runScan(): Promise<void> {
   activeFilter = "all";
   filterSelect.value = "all";
   renderFindings();
+  startElapsedTimer();
 
   const started = performance.now();
   let platform = "unknown";
@@ -262,8 +302,7 @@ async function runScan(): Promise<void> {
   try {
     for (const [index, feature] of scanOrder.entries()) {
       if (scanCancelled) break;
-      scanButton.textContent = `Analisando ${index + 1}/${scanOrder.length}...`;
-      statusLabel.textContent = `Analisando: ${featureLabels[feature]}`;
+      statusLabel.textContent = `Analisando ${index + 1}/${scanOrder.length}: ${featureLabels[feature]}`;
       getElement("scan-caption").textContent = `Varrendo ${featureLabels[feature].toLowerCase()}...`;
       try {
         const result = await invoke<ScanResult>("scan_candidates", { feature });
@@ -289,10 +328,10 @@ async function runScan(): Promise<void> {
     }
   } finally {
     scanning = false;
-    cancelScanButton.hidden = true;
+    stopElapsedTimer();
+    setScanButtonState(false);
+    scanButtonLabel.textContent = "Escanear novamente";
     getElement("scan-visual").classList.remove("is-scanning");
-    scanButton.disabled = false;
-    scanButton.textContent = "Escanear novamente";
   }
 }
 

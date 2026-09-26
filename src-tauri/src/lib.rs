@@ -24,16 +24,25 @@ struct ScanResult {
 }
 
 #[tauri::command]
-async fn scan_candidates(feature: Option<String>) -> Result<ScanResult, String> {
+async fn scan_candidates(
+    app: tauri::AppHandle,
+    feature: Option<String>,
+) -> Result<ScanResult, String> {
+    use tauri::Emitter;
+
     let selected_feature = feature
         .map(|value| {
             Feature::parse(&value).ok_or_else(|| format!("Unsupported scan feature: {value}"))
         })
         .transpose()?;
     let started = Instant::now();
+    rusty_cleaner::scanner::set_progress_callback(Some(Box::new(move |path| {
+        let _ = app.emit("scan-progress", path.to_string_lossy().into_owned());
+    })));
     let findings = tauri::async_runtime::spawn_blocking(move || scan(selected_feature))
         .await
         .map_err(|error| error.to_string())?;
+    rusty_cleaner::scanner::set_progress_callback(None);
     let elapsed_ms = started.elapsed().as_millis();
 
     Ok(ScanResult {

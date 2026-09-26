@@ -1,6 +1,27 @@
 use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Optional observer notified when the walker enters a directory. Used by the
+/// desktop app to show which folder is being scanned right now.
+type ProgressCallback = Box<dyn Fn(&Path) + Send>;
+
+static PROGRESS_CALLBACK: Mutex<Option<ProgressCallback>> = Mutex::new(None);
+
+pub fn set_progress_callback(callback: Option<ProgressCallback>) {
+    if let Ok(mut slot) = PROGRESS_CALLBACK.lock() {
+        *slot = callback;
+    }
+}
+
+fn report_progress(path: &Path) {
+    if let Ok(slot) = PROGRESS_CALLBACK.lock() {
+        if let Some(callback) = slot.as_ref() {
+            callback(path);
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Feature {
@@ -98,6 +119,7 @@ fn walk_one(
     if depth > 0 && is_excluded_dir(path) {
         return;
     }
+    report_progress(path);
     let Ok(entries) = fs::read_dir(path) else {
         return;
     };
