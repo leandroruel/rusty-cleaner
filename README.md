@@ -20,7 +20,7 @@ The long-term product is intended to provide a desktop interface, clear explanat
 
 ## Current status
 
-The current CLI can scan for these candidates:
+The current CLI and desktop prototype can scan for these candidates:
 
 | Feature | Current behavior |
 | --- | --- |
@@ -32,7 +32,7 @@ The current CLI can scan for these candidates:
 | `duplicates` | Finds files of at least 1 MiB, groups by size and hash, then verifies matching content byte by byte. |
 | `large-old` | Lists files of at least 100 MiB in the home directory that have not changed in at least 180 days. |
 
-Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. There is no desktop interface or deletion command yet.
+Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. The desktop interface is an early, read-only prototype; there is no deletion command yet.
 
 ## Requirements
 
@@ -46,6 +46,13 @@ cargo build
 cargo run -- --help
 cargo run -- scan
 cargo run -- scan --feature large-old
+```
+
+Run the desktop app in development mode with Node.js and the Tauri system prerequisites installed:
+
+```sh
+npm install
+npm run tauri -- dev
 ```
 
 Run the test suite with:

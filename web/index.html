@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0e13" />
+    <title>Rusty Cleaner</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="titlebar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="app-name"><strong>Rusty</strong> Cleaner</span>
+        </div>
+        <div class="title-actions">
+          <div class="theme-switch" role="group" aria-label="Tema da interface">
+            <button class="theme-option is-active" type="button" data-theme-option="rusty" aria-pressed="true">Rusty</button>
+            <button class="theme-option" type="button" data-theme-option="omarchy" aria-pressed="false">Omarchy</button>
+          </div>
+          <div class="system-status" id="system-status" role="status">
+            <span class="status-dot"></span>
+            <span id="status-label">Pronto para analisar</span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="dashboard-grid" aria-label="Resumo da limpeza">
+          <section class="panel scan-panel" aria-labelledby="scan-title">
+            <div class="panel-heading scan-heading">
+              <div>
+                <p class="eyebrow">ANÁLISE DO SISTEMA</p>
+                <h1 id="scan-title">Encontre espaço para recuperar</h1>
+              </div>
+              <span class="read-only-badge">SOMENTE LEITURA</span>
+            </div>
+
+            <div class="scan-visual" id="scan-visual">
+              <div class="scan-ring" aria-hidden="true"></div>
+              <div class="scan-ring-inner">
+                <strong id="total-size">0 B</strong>
+                <span>encontrados</span>
+              </div>
+            </div>
+            <p class="scan-caption" id="scan-caption">Nenhuma varredura nesta sessão</p>
+
+            <div class="category-breakdown" id="category-breakdown" aria-live="polite">
+              <p class="empty-breakdown">Os resultados aparecerão aqui após a análise.</p>
+            </div>
+
+            <div class="scan-actions">
+              <button class="button button-quiet" id="scan-button" type="button">Iniciar varredura</button>
+              <button class="button button-primary" id="results-button" type="button" disabled>Ver resultados</button>
+            </div>
+          </section>
+
+          <div class="summary-column">
+            <section class="panel summary-panel" aria-labelledby="browser-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="browser-title">Navegadores</h2>
+                  <p class="panel-subtitle">Arquivos em caminhos de cache reconhecidos</p>
+                </div>
+                <strong class="summary-size" id="browser-size">0 B</strong>
+              </div>
+              <div class="summary-detail" id="browser-detail">Aguardando análise</div>
+              <button class="text-button" type="button" data-filter="browser">Ver arquivos <span aria-hidden="true">→</span></button>
+            </section>
+
+            <section class="panel trash-panel" aria-labelledby="trash-title">
+              <div class="trash-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="trash-copy">
+                <h2 id="trash-title">Lixeira</h2>
+                <p id="trash-detail">Aguardando análise</p>
+              </div>
+              <button class="button button-outline-danger" type="button" data-filter="trash">Revisar</button>
+            </section>
+
+            <section class="panel messenger-panel" aria-labelledby="messenger-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="messenger-title">Mídia de mensageiros</h2>
+                  <p class="panel-subtitle">Telegram e Discord detectados</p>
+                </div>
+                <strong class="summary-size" id="messenger-size">0 B</strong>
+              </div>
+              <div class="messenger-list">
+                <button class="messenger-row" type="button" data-filter="chat-media">
+                  <span class="app-glyph glyph-telegram" aria-hidden="true">T</span>
+                  <span class="messenger-name">Telegram</span>
+                  <span class="messenger-count" id="telegram-count">—</span>
+                </button>
+                <button class="messenger-row" type="button" data-filter="chat-media">
+                  <span class="app-glyph glyph-discord" aria-hidden="true">D</span>
+                  <span class="messenger-name">Discord</span>
+                  <span class="messenger-count" id="discord-count">—</span>
+                </button>
+                <div class="messenger-row unsupported-row">
+                  <span class="app-glyph glyph-whatsapp" aria-hidden="true">W</span>
+                  <span class="messenger-name">WhatsApp</span>
+                  <span class="messenger-count">em breve</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="monitor-bar" aria-label="Resumo da varredura">
+          <div class="monitor-item"><span class="monitor-label">ITENS ENCONTRADOS</span><strong id="item-count">0</strong></div>
+          <div class="monitor-item"><span class="monitor-label">ESPAÇO LISTADO</span><strong id="space-count">0 B</strong></div>
+          <div class="monitor-item"><span class="monitor-label">CATEGORIAS COM ITENS</span><strong id="category-count">0 / 7</strong></div>
+          <div class="monitor-item"><span class="monitor-label">DURAÇÃO</span><strong id="duration-count">—</strong></div>
+        </section>
+
+        <section class="panel results-panel" id="results-panel" aria-labelledby="results-title">
+          <div class="results-heading">
+            <div>
+              <p class="eyebrow">REVISÃO</p>
+              <h2 id="results-title">Itens encontrados</h2>
+            </div>
+            <label class="filter-control">
+              <span>Categoria</span>
+              <select id="feature-filter" aria-label="Filtrar por categoria">
+                <option value="all">Todas</option>
+                <option value="orphan">Dados antigos de apps</option>
+                <option value="temp">Temporários</option>
+                <option value="chat-media">Mídia de mensageiros</option>
+                <option value="trash">Lixeira</option>
+                <option value="browser">Navegadores</option>
+                <option value="duplicates">Duplicados</option>
+                <option value="large-old">Grandes e antigos</option>
+              </select>
+            </label>
+          </div>
+          <div class="results-table-wrap">
+            <table>
+              <thead><tr><th scope="col">ARQUIVO</th><th scope="col">CATEGORIA</th><th scope="col">TAMANHO</th><th scope="col">ALTERADO</th></tr></thead>
+              <tbody id="results-body"><tr><td colspan="4" class="table-empty">Inicie uma varredura para revisar os candidatos. Nenhum arquivo será apagado.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
