@@ -1,29 +1,65 @@
-# CleanOS Pro (rusty-cleaner)
+# Rusty Cleaner
 
-A cross-platform Rust CLI prototype for finding cleanup candidates on Linux,
-macOS, and Windows. Scans are read-only: this version never deletes files.
+Rusty Cleaner is an open-source file-cleaning application written in Rust. The goal is to grow it into a complete, cross-platform cleaner for Linux, macOS, and Windows, with a broad set of tools to help people understand and manage files taking up disk space.
+
+The project is under active development. The current version is an experimental command-line prototype. Scans are read-only: **no files are deleted**.
+
+## Project vision
+
+Rusty Cleaner aims to help users find and safely review:
+
+- Leftover data from uninstalled applications
+- Temporary files and application caches
+- Media and downloads from messaging apps such as WhatsApp, Telegram, and Discord
+- Files in the system trash or recycle bin
+- Browser caches and other browser data
+- Exact duplicate files
+- Large files that have not been modified for a long time
+
+The long-term product is intended to provide a desktop interface, clear explanations for every finding, user-controlled selection, and safeguards against deleting important data. These are project goals, not claims about the current prototype.
+
+## Current status
+
+The current CLI can scan for these candidates:
+
+| Feature | Current behavior |
+| --- | --- |
+| `orphan` | Lists old files in selected application-data directories. Age is only a heuristic; it cannot confirm that an application was uninstalled. |
+| `temp` | Lists files in the operating system's temporary directory that have not changed in at least 7 days. |
+| `chat-media` | Looks for media in recognized Telegram and Discord directories. WhatsApp does not yet have a dedicated location scanner. |
+| `trash` | Lists files in known trash locations. |
+| `browser` | Looks for files under recognized browser cache paths. |
+| `duplicates` | Finds files of at least 1 MiB, groups by size and hash, then verifies matching content byte by byte. |
+| `large-old` | Lists files of at least 100 MiB in the home directory that have not changed in at least 180 days. |
+
+Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. There is no desktop interface or deletion command yet.
+
+## Requirements
+
+- Rust 1.70 or later
+- Cargo
 
 ## Build and run
 
 ```sh
+cargo build
+cargo run -- --help
 cargo run -- scan
 cargo run -- scan --feature large-old
 ```
 
-Use `cargo run -- --help` to see supported features. Candidates should be
-reviewed manually before deletion. Orphan application data is heuristic and
-must not be treated as proof that a file is safe to remove.
+Run the test suite with:
 
-## Initial scanners
+```sh
+cargo test
+```
 
-- Orphan/stale application data candidates
-- Temporary files
-- Chat media (WhatsApp, Telegram, Discord)
-- Trash/recycle-bin contents
-- Browser cache and profile data candidates
-- Duplicate files (same size and content hash)
-- Large files not modified recently
+## Safety
 
-The desktop interface and deletion workflow are not implemented yet. The
-project is intentionally read-only until the scanners and platform paths have
-been validated on each target operating system.
+- The current version only reports candidates; it does not remove or modify files.
+- Review every result before deciding whether it is safe to remove. Age, size, and location do not prove that a file is unnecessary.
+- Leftover application data detection is heuristic and may include data still used by installed software.
+
+## Contributing
+
+Rusty Cleaner is an open-source project, and contributions are welcome. Bug reports, platform-specific testing, documentation improvements, and feature proposals can be submitted through GitHub issues and pull requests.
