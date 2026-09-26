@@ -119,9 +119,29 @@
                   <span class="messenger-name">WhatsApp</span>
                   <span class="messenger-count" id="whatsapp-count">—</span>
                 </button>
+                <button class="messenger-row" type="button" data-filter="chat-media">
+                  <span class="app-glyph glyph-signal" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8Zm-1-13h2v6h-2Zm0 8h2v2h-2Z" fill="currentColor"/></svg></span>
+                  <span class="messenger-name">Signal</span>
+                  <span class="messenger-count" id="signal-count">—</span>
+                </button>
+                <button class="messenger-row" type="button" data-filter="chat-media">
+                  <span class="app-glyph glyph-slack" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2a2 2 0 0 0-2 2v5H2a2 2 0 0 0 0 4h5v5a2 2 0 0 0 4 0v-5h5a2 2 0 0 0 0-4h-5V4a2 2 0 0 0-2-2Z" fill="currentColor"/></svg></span>
+                  <span class="messenger-name">Slack</span>
+                  <span class="messenger-count" id="slack-count">—</span>
+                </button>
+                <button class="messenger-row" type="button" data-filter="chat-media">
+                  <span class="app-glyph glyph-element" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+                  <span class="messenger-name">Element</span>
+                  <span class="messenger-count" id="element-count">—</span>
+                </button>
               </div>
               <div class="media-types" id="media-types"></div>
               <div class="card-actions">
+                <select class="media-filter" id="media-filter" aria-label="Filter media to clean">
+                  <option value="all" data-i18n="media.filterAll">All media</option>
+                  <option value="old" data-i18n="media.filterOld">Older than 90 days</option>
+                  <option value="large" data-i18n="media.filterLarge">Larger than 50 MB</option>
+                </select>
                 <button class="button button-quiet card-clean" id="clean-messenger-button" type="button" disabled data-i18n="card.clean">Clean</button>
               </div>
             </section>

@@ -69,7 +69,15 @@ async function emptyTrash(): Promise<void> {
 }
 
 async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
-  const items = state.findings.filter((item) => item.feature === feature);
+  let items = state.findings.filter((item) => item.feature === feature);
+  if (feature === "chat-media") {
+    const filter = getElement<HTMLSelectElement>("media-filter").value;
+    if (filter === "old") {
+      items = items.filter((item) => (item.ageDays ?? 0) >= 90);
+    } else if (filter === "large") {
+      items = items.filter((item) => item.size >= 50 * 1024 * 1024);
+    }
+  }
   if (items.length === 0) return;
   const size = items.reduce((total, item) => total + item.size, 0);
   openConfirm(

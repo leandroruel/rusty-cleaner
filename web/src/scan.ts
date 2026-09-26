@@ -100,7 +100,7 @@ export async function runScan(): Promise<void> {
 function renderSummary(result: ScanResult): void {
   const totalSize = state.findings.reduce((total, item) => total + item.size, 0);
   const counts = new Map<FeatureKey, { count: number; size: number }>();
-  const messengerCounts = { telegram: 0, discord: 0, whatsapp: 0 };
+  const messengerCounts = { telegram: 0, discord: 0, whatsapp: 0, signal: 0, slack: 0, element: 0 };
   for (const item of state.findings) {
     const current = counts.get(item.feature) ?? { count: 0, size: 0 };
     current.count += 1;
@@ -111,6 +111,9 @@ function renderSummary(result: ScanResult): void {
       if (path.includes("telegram")) messengerCounts.telegram += 1;
       if (path.includes("discord")) messengerCounts.discord += 1;
       if (path.includes("whatsapp") || path.includes("whatsdesk") || path.includes("zapzap")) messengerCounts.whatsapp += 1;
+      if (path.includes("signal")) messengerCounts.signal += 1;
+      if (path.includes("slack")) messengerCounts.slack += 1;
+      if (path.includes("element")) messengerCounts.element += 1;
     }
   }
 
@@ -156,6 +159,9 @@ function renderSummary(result: ScanResult): void {
   getElement("telegram-count").textContent = t("card.items", { count: formatCount(messengerCounts.telegram) });
   getElement("discord-count").textContent = t("card.items", { count: formatCount(messengerCounts.discord) });
   getElement("whatsapp-count").textContent = t("card.items", { count: formatCount(messengerCounts.whatsapp) });
+  getElement("signal-count").textContent = t("card.items", { count: formatCount(messengerCounts.signal) });
+  getElement("slack-count").textContent = t("card.items", { count: formatCount(messengerCounts.slack) });
+  getElement("element-count").textContent = t("card.items", { count: formatCount(messengerCounts.element) });
   renderMediaTypes();
 }
 
