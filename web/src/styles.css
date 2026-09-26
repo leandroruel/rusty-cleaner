@@ -106,7 +106,8 @@ h2 { margin:0; font-size:13px; font-weight:700; }
 .trash-copy p { margin:4px 0 0; color:var(--text-faint); font-size:10px; }
 .trash-actions { display:flex; align-items:center; gap:10px; }
 .browser-chips { display:flex; flex-wrap:wrap; gap:6px; padding-top:8px; }
-.browser-chip { padding:3px 8px; border:1px solid var(--border); border-radius:5px; background:var(--panel-2); color:var(--text-dim); font:10px var(--font-mono); }
+.browser-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border:1px solid var(--border); border-radius:5px; background:var(--panel-2); color:var(--text-dim); font:10px var(--font-mono); }
+.browser-chip svg { width:13px; height:13px; flex:none; }
 .button-outline-danger { min-height:30px; padding:5px 9px; border-color:rgba(255,77,106,.3); background:transparent; color:var(--red); font-size:10px; }
 .button-outline-danger:hover:not(:disabled) { background:rgba(255,77,106,.08); }
 .messenger-panel { flex:1; padding:15px 16px 10px; }

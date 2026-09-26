@@ -481,7 +481,8 @@ function renderSummary(result: ScanResult): void {
   for (const [name, data] of [...byBrowser.entries()].sort((a, b) => b[1].size - a[1].size)) {
     const chip = document.createElement("span");
     chip.className = "browser-chip";
-    chip.textContent = `${name} · ${formatBytes(data.size)}`;
+    chip.innerHTML = `${browserIcon(name)}<span></span>`;
+    chip.querySelector("span")!.textContent = `${name} · ${formatBytes(data.size)}`;
     chips.append(chip);
   }
   const trash = counts.get("trash") ?? { count: 0, size: 0 };
@@ -660,6 +661,18 @@ function browserName(path: string): string {
   if (lower.includes("firefox") || lower.includes("mozilla")) return "Firefox";
   if (lower.includes("safari")) return "Safari";
   return "Outros";
+}
+
+function browserIcon(name: string): string {
+  const icons: Record<string, string> = {
+    Chrome: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#ffc233" stroke-width="2"/><circle cx="12" cy="12" r="3.4" fill="#33e0ff"/><path d="M12 3a9 9 0 0 1 7.8 4.5H12" fill="none" stroke="#ff4d6a" stroke-width="2"/><path d="M4.2 16.5 9 12" stroke="#33ffb0" stroke-width="2"/></svg>`,
+    Chromium: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#6b9fff" stroke-width="2"/><circle cx="12" cy="12" r="3.4" fill="#6b9fff"/></svg>`,
+    Firefox: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#ff9f43" stroke-width="2"/><path d="M12 3c3 2 5 5 5 9a5 5 0 0 1-10 0c0-2 1-4 2-5" fill="none" stroke="#ff9f43" stroke-width="2" stroke-linecap="round"/></svg>`,
+    Edge: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#33e0ff" stroke-width="2"/><path d="M5 14c2 1 5 1 7-1s3-5 1-7" fill="none" stroke="#33e0ff" stroke-width="2" stroke-linecap="round"/></svg>`,
+    Brave: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7l7-4Z" fill="none" stroke="#ff3df0" stroke-width="2" stroke-linejoin="round"/></svg>`,
+    Safari: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#9d4dff" stroke-width="2"/><path d="m15 9-2 5-4 1 2-5 4-1Z" fill="#9d4dff"/></svg>`,
+  };
+  return icons[name] ?? `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
 }
 
 async function refreshMetrics(): Promise<void> {
