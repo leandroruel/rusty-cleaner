@@ -3,6 +3,9 @@ export type Locale = "en" | "pt-BR";
 const dictionaries: Record<Locale, Record<string, string>> = {
   en: {
     "app.ready": "Ready to scan",
+    "update.available": "v{version} available",
+    "update.installing": "Updating…",
+    "update.failed": "Update failed",
     "app.scanning": "Scanning known folders",
     "app.done": "analysis complete",
     "app.cancelled": "Scan interrupted",
@@ -127,6 +130,9 @@ const dictionaries: Record<Locale, Record<string, string>> = {
   },
   "pt-BR": {
     "app.ready": "Pronto para analisar",
+    "update.available": "v{version} disponível",
+    "update.installing": "Atualizando…",
+    "update.failed": "Falha na atualização",
     "app.scanning": "Analisando pastas reconhecidas",
     "app.done": "análise concluída",
     "app.cancelled": "Análise interrompida",

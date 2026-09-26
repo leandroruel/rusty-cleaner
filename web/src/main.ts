@@ -7,6 +7,7 @@ import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels } from
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
 import { initRestore, isRestoreOpen, closeRestore } from "./restore";
 import { initMonitor } from "./monitor";
+import { initUpdater } from "./updater";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/500.css";
 import "@fontsource/manrope/600.css";
@@ -65,6 +66,7 @@ initSettings(() => {
 });
 initRestore();
 initMonitor();
+if (isTauri()) initUpdater();
 
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;

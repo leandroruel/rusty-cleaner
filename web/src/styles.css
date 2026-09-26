@@ -43,6 +43,11 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); out
 .system-status { display:flex; align-items:center; gap:8px; color:var(--green); border:1px solid rgba(51,255,176,.28); background:rgba(51,255,176,.06); border-radius:999px; padding:5px 11px; font-size:11px; }
 .status-dot { width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor; }
 .system-status.is-busy { color:var(--amber); }
+.update-badge { display:flex; align-items:center; gap:6px; border:1px solid rgba(96,165,250,.4); background:rgba(96,165,250,.1); color:#60a5fa; border-radius:999px; padding:5px 11px; font-size:11px; font-weight:600; cursor:pointer; transition:background .16s, border-color .16s; }
+.update-badge:hover:not(:disabled) { background:rgba(96,165,250,.2); border-color:#60a5fa; }
+.update-badge:disabled { opacity:.6; cursor:wait; }
+.update-badge svg { width:12px; height:12px; }
+.update-badge.hidden { display:none; }
 main { display:flex; min-height:0; flex:1; flex-direction:column; overflow:hidden; padding-top:12px; }
 .dashboard-grid { display:grid; min-height:0; flex:1; grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr); gap:12px; align-items:stretch; }
 .panel { min-width:0; background:var(--panel); border:1px solid var(--border); border-radius:8px; }

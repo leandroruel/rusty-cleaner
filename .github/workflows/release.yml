@@ -44,6 +44,9 @@ jobs:
           npm ci
           npm run build
       - name: Build Tauri app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build --target ${{ matrix.target }}
       - name: Sign Windows binaries
         if: matrix.platform == 'windows' && env.SIGNPATH_API_TOKEN != ''
@@ -65,6 +68,9 @@ jobs:
             target/${{ matrix.target }}/release/bundle/**/*.dmg
             target/${{ matrix.target }}/release/bundle/**/*.msi
             target/${{ matrix.target }}/release/bundle/**/*.exe
+            target/${{ matrix.target }}/release/bundle/**/*.sig
+            target/${{ matrix.target }}/release/bundle/**/*.AppImage.tar.gz
+            target/${{ matrix.target }}/release/bundle/**/*.app.tar.gz
           if-no-files-found: warn
 
   release:
@@ -87,4 +93,64 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.msi
             artifacts/**/*.exe
+            artifacts/**/*.sig
+            artifacts/**/*.AppImage.tar.gz
+            artifacts/**/*.app.tar.gz
           generate_release_notes: true
+
+      - name: Generate updater manifest (latest.json)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          REPO="${GITHUB_REPOSITORY}"
+          VERSION="${TAG#v}"
+          python3 - "$TAG" "$REPO" "$VERSION" <<'EOF'
+          import json, os, sys, urllib.request
+
+          tag, repo, version = sys.argv[1], sys.argv[2], sys.argv[3]
+          token = os.environ["GH_TOKEN"]
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/releases/tags/{tag}",
+              headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+          )
+          release = json.load(urllib.request.urlopen(req))
+          assets = {a["name"]: a["browser_download_url"] for a in release["assets"]}
+
+          def find(suffix):
+              for name, url in assets.items():
+                  if name.endswith(suffix):
+                      return name, url
+              return None, None
+
+          platforms = {}
+          mapping = {
+              "linux-x86_64": (".AppImage.tar.gz", ".AppImage.tar.gz.sig"),
+              "darwin-x86_64": (".app.tar.gz", ".app.tar.gz.sig"),
+              "windows-x86_64": ("-setup.exe", "-setup.exe.sig"),
+          }
+          for platform, (bundle_suffix, sig_suffix) in mapping.items():
+              bundle_name, bundle_url = find(bundle_suffix)
+              sig_name, sig_url = find(sig_suffix)
+              if not bundle_url or not sig_url:
+                  continue
+              sig_req = urllib.request.Request(sig_url, headers={"Authorization": f"Bearer {token}"})
+              signature = urllib.request.urlopen(sig_req).read().decode().strip()
+              platforms[platform] = {"signature": signature, "url": bundle_url}
+
+          manifest = {
+              "version": version,
+              "notes": f"https://github.com/{repo}/releases/tag/{tag}",
+              "pub_date": release["published_at"],
+              "platforms": platforms,
+          }
+          with open("latest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+      - name: Upload updater manifest
+        uses: softprops/action-gh-release@v2
+        with:
+          files: latest.json

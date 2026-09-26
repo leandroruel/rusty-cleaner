@@ -351,8 +351,34 @@ fn current_platform() -> &'static str {
     }
 }
 
+#[tauri::command]
+async fn check_for_update(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => Ok(Some(update.version.to_string())),
+        Ok(None) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    if let Some(update) = updater.check().await.map_err(|error| error.to_string())? {
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|error| error.to_string())?;
+        app.restart();
+    }
+    Ok(())
+}
+
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             scan_candidates,
             detect_theme,
@@ -365,7 +391,9 @@ pub fn run() {
             open_log_folder,
             list_excluded_dirs,
             add_excluded_dir,
-            remove_excluded_dir
+            remove_excluded_dir,
+            check_for_update,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Rusty Cleaner desktop application");
