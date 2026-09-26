@@ -164,6 +164,46 @@ async fn empty_trash() -> Result<EmptyTrashResult, String> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct TrashItemView {
+    name: String,
+    original_path: String,
+}
+
+#[tauri::command]
+async fn list_trash_items() -> Result<Vec<TrashItemView>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let items = trash::os_limited::list().map_err(|error| error.to_string())?;
+        Ok(items
+            .into_iter()
+            .map(|item| TrashItemView {
+                name: item.name.to_string_lossy().into_owned(),
+                original_path: item.original_path().to_string_lossy().into_owned(),
+            })
+            .collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn restore_trash_items(names: Vec<String>) -> Result<u64, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let items = trash::os_limited::list().map_err(|error| error.to_string())?;
+        let selected: Vec<_> = items
+            .into_iter()
+            .filter(|item| names.contains(&item.name.to_string_lossy().into_owned()))
+            .collect();
+        let count = selected.len() as u64;
+        trash::os_limited::restore_all(selected).map_err(|error| error.to_string())?;
+        rusty_cleaner::activity_log::record("restore-trash", &format!("restored={count}"));
+        Ok(count)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SystemMetrics {
     cpu_percent: f32,
     memory_used: u64,
@@ -299,6 +339,8 @@ pub fn run() {
             detect_theme,
             trash_candidates,
             empty_trash,
+            list_trash_items,
+            restore_trash_items,
             system_metrics,
             log_file_path,
             open_log_folder,

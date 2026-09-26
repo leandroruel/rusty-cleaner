@@ -196,6 +196,12 @@ tbody tr:hover { background:rgba(255,255,255,.018); }
 .exclude-list li:last-child { border-bottom:0; }
 .exclude-list li span { flex:1; min-width:0; overflow:hidden; color:var(--text-dim); font:10px var(--font-mono); text-overflow:ellipsis; white-space:nowrap; }
 .exclude-empty { color:var(--text-faint); font-size:10px; }
+.restore-list { margin:0 0 12px; padding:0; list-style:none; max-height:300px; overflow:auto; }
+.restore-list li { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(35,42,56,.6); }
+.restore-list li:last-child { border-bottom:0; }
+.restore-list input { width:14px; height:14px; margin:0; accent-color:var(--cyan); cursor:pointer; flex:none; }
+.restore-list span { flex:1; min-width:0; overflow:hidden; color:var(--text-dim); font:10px var(--font-mono); text-overflow:ellipsis; white-space:nowrap; }
+.restore-actions { display:flex; justify-content:flex-end; }
 .toast { position:fixed; right:22px; bottom:20px; z-index:5; max-width:min(440px,calc(100vw - 32px)); padding:12px 15px; border:1px solid rgba(255,194,51,.4); border-radius:6px; background:#1d1a14; color:#ffe2a1; box-shadow:0 8px 32px #0008; font-size:12px; animation:toast-in .2s ease-out; }
 .toast[hidden] { display:none; }
 @keyframes toast-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }

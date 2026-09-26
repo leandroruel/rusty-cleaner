@@ -5,6 +5,7 @@ import { initScan } from "./scan";
 import { initResults, renderFindings, updateSelectionBar, closeResults } from "./results";
 import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels } from "./cleaning";
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
+import { initRestore, isRestoreOpen, closeRestore } from "./restore";
 import { initMonitor } from "./monitor";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/500.css";
@@ -62,12 +63,15 @@ initSettings(() => {
   renderFindings();
   updateSelectionBar();
 });
+initRestore();
 initMonitor();
 
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (isConfirmOpen()) {
     closeConfirm();
+  } else if (isRestoreOpen()) {
+    closeRestore();
   } else if (isSettingsOpen()) {
     closeSettings();
   } else {

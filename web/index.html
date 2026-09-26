@@ -87,6 +87,7 @@
               </div>
               <div class="trash-actions">
                 <button class="text-button" type="button" data-filter="trash" data-i18n="card.review">Review</button>
+                <button class="text-button" id="restore-trash-button" type="button" data-i18n="card.restore">Restore</button>
                 <button class="button button-outline-danger" id="empty-trash-button" type="button" disabled data-i18n="card.empty">Empty</button>
               </div>
             </section>
@@ -194,6 +195,22 @@
           </div>
         </div>
       </main>
+      <div class="settings-overlay" id="restore-overlay" hidden>
+        <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="restore-title">
+          <div class="settings-head">
+            <h2 id="restore-title" data-i18n="restore.title">Restore from trash</h2>
+            <button class="icon-button" id="restore-close" type="button" data-i18n-aria="settings.close" aria-label="Close">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <p class="settings-hint" data-i18n="restore.hint">Select items to restore to their original location.</p>
+          <ul class="exclude-list restore-list" id="restore-list"></ul>
+          <div class="confirm-actions">
+            <button class="button button-quiet" id="restore-cancel" type="button" data-i18n="confirm.cancel">Cancel</button>
+            <button class="button button-primary" id="restore-accept" type="button" data-i18n="restore.action">Restore selected</button>
+          </div>
+        </div>
+      </div>
       <div class="settings-overlay" id="settings-overlay" hidden>
         <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
           <div class="settings-head">
