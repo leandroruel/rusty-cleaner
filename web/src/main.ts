@@ -205,6 +205,8 @@ function showToast(message: string): void {
   toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4500);
 }
 
+const scanOrder: FeatureKey[] = ["trash", "temp", "browser", "chat-media", "orphan", "large-old", "duplicates"];
+
 async function runScan(): Promise<void> {
   if (!isTauri()) {
     showToast("Abra o aplicativo desktop com `npm run tauri dev` para executar a varredura.");
@@ -212,29 +214,42 @@ async function runScan(): Promise<void> {
   }
 
   scanButton.disabled = true;
-  scanButton.textContent = "Analisando...";
   resultsButton.disabled = true;
   getElement("scan-visual").classList.add("is-scanning");
   getElement("system-status").classList.add("is-busy");
-  statusLabel.textContent = "Analisando pastas reconhecidas";
-  getElement("scan-caption").textContent = "A varredura é somente leitura";
+  findings = [];
+  selectedPaths.clear();
+  activeFilter = "all";
+  filterSelect.value = "all";
+  renderFindings();
+
+  const started = performance.now();
+  let platform = "unknown";
+  let failed = 0;
 
   try {
-    const result = await invoke<ScanResult>("scan_candidates");
-    findings = result.findings;
-    renderSummary(result);
-    activeFilter = "all";
-    filterSelect.value = "all";
-    renderFindings();
+    for (const [index, feature] of scanOrder.entries()) {
+      scanButton.textContent = `Analisando ${index + 1}/${scanOrder.length}...`;
+      statusLabel.textContent = `Analisando: ${featureLabels[feature]}`;
+      getElement("scan-caption").textContent = `Varrendo ${featureLabels[feature].toLowerCase()}...`;
+      try {
+        const result = await invoke<ScanResult>("scan_candidates", { feature });
+        platform = result.platform;
+        findings.push(...result.findings);
+        renderSummary({ findings, elapsedMs: performance.now() - started, platform });
+      } catch {
+        failed += 1;
+      }
+    }
+
+    const elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = findings.length === 0;
-    statusLabel.textContent = `${platformName(result.platform)} · análise concluída`;
+    statusLabel.textContent = `${platformName(platform)} · análise concluída`;
     getElement("system-status").classList.remove("is-busy");
-    getElement("scan-caption").textContent = `${findings.length.toLocaleString("pt-BR")} itens encontrados em ${(result.elapsedMs / 1000).toFixed(1).replace(".", ",")}s`;
-  } catch (error) {
-    statusLabel.textContent = "Falha na análise";
-    getElement("system-status").classList.remove("is-busy");
-    getElement("scan-caption").textContent = "Não foi possível concluir a varredura";
-    showToast(String(error));
+    getElement("scan-caption").textContent = `${findings.length.toLocaleString("pt-BR")} itens encontrados em ${elapsed.toFixed(1).replace(".", ",")}s`;
+    if (failed > 0) {
+      showToast(`${failed} ${failed === 1 ? "categoria falhou" : "categorias falharam"} durante a varredura.`);
+    }
   } finally {
     getElement("scan-visual").classList.remove("is-scanning");
     scanButton.disabled = false;

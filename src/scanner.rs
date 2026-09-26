@@ -86,12 +86,48 @@ fn walk_one(
     if !metadata.is_dir() || depth >= max_depth {
         return;
     }
+    if depth > 0 && is_excluded_dir(path) {
+        return;
+    }
     let Ok(entries) = fs::read_dir(path) else {
         return;
     };
     for entry in entries.flatten() {
         walk_one(&entry.path(), depth + 1, max_depth, accept, found);
     }
+}
+
+/// Directories that are never worth scanning for cleanup candidates: they are
+/// either build artifacts/dependency caches managed by tools, or huge trees
+/// that would make a full-home scan slow and memory-hungry.
+fn is_excluded_dir(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    matches!(
+        name,
+        "node_modules"
+            | "target"
+            | ".git"
+            | ".svn"
+            | ".hg"
+            | "__pycache__"
+            | ".venv"
+            | "venv"
+            | ".rustup"
+            | ".cargo"
+            | ".npm"
+            | ".pnpm-store"
+            | ".yarn"
+            | ".gradle"
+            | ".m2"
+            | "go"
+            | ".dotnet"
+            | ".vscode-server"
+            | ".vscode"
+            | ".idea"
+            | "Library"
+    )
 }
 
 pub fn finding(feature: Feature, path: PathBuf) -> Finding {
