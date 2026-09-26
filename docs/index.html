@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Rusty Cleaner — a fast, open-source, cross-platform disk cleaner built in Rust. Reclaim space from caches, duplicates, messenger media and more." />
+    <meta name="theme-color" content="#0b0e13" />
+    <title>Rusty Cleaner — Reclaim your disk space</title>
+    <link rel="icon" href="app-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="brand">
+        <img src="app-icon.png" alt="" width="28" height="28" />
+        <span><strong>Rusty</strong> Cleaner</span>
+      </div>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/leandroruel/rusty-cleaner" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">OPEN SOURCE · RUST · CROSS-PLATFORM</p>
+        <h1>Find space to reclaim.<br /><span>Safely.</span></h1>
+        <p class="lede">
+          Rusty Cleaner scans your system for caches, duplicates, large old files,
+          messenger media and more — then moves everything to the trash, never deleting
+          anything outright. Fast, read-only until you say otherwise.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#download">Download</a>
+          <a class="btn btn-ghost" href="https://github.com/leandroruel/rusty-cleaner" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <div class="hero-shot">
+          <img src="screenshot.png" alt="Rusty Cleaner dashboard" onerror="this.parentElement.style.display='none'" />
+        </div>
+      </section>
+
+      <section class="features" id="features">
+        <h2>Everything a cleaner should do</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>🧹 Smart scanners</h3>
+            <p>Temp files, browser caches, trash, duplicates, large &amp; old files, orphaned app data and messenger media — seven specialized scanners.</p>
+          </article>
+          <article class="card">
+            <h3>🛡️ Safe by default</h3>
+            <p>Nothing is deleted permanently. Files go to the system trash and can be restored from inside the app.</p>
+          </article>
+          <article class="card">
+            <h3>⚡ Rust fast</h3>
+            <p>Parallel scanning with live progress, low memory footprint and instant startup. No Electron bloat.</p>
+          </article>
+          <article class="card">
+            <h3>💬 Messenger cleanup</h3>
+            <p>Reclaim gigabytes from Telegram, Discord, WhatsApp, Signal, Slack and Element media caches.</p>
+          </article>
+          <article class="card">
+            <h3>🖥️ Cross-platform</h3>
+            <p>Linux (incl. Omarchy), macOS and Windows — with native installers for each platform.</p>
+          </article>
+          <article class="card">
+            <h3>🔄 Auto-update</h3>
+            <p>The app detects new releases and updates itself with one click from the dashboard.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="download" id="download">
+        <h2>Download</h2>
+        <p class="lede">Grab the latest release for your platform.</p>
+        <div class="grid downloads">
+          <a class="card dl" href="https://github.com/leandroruel/rusty-cleaner/releases/latest" target="_blank" rel="noopener">
+            <h3>🐧 Linux</h3>
+            <p>.deb · .rpm · .AppImage</p>
+          </a>
+          <a class="card dl" href="https://github.com/leandroruel/rusty-cleaner/releases/latest" target="_blank" rel="noopener">
+            <h3>🍎 macOS</h3>
+            <p>.dmg</p>
+          </a>
+          <a class="card dl" href="https://github.com/leandroruel/rusty-cleaner/releases/latest" target="_blank" rel="noopener">
+            <h3>🪟 Windows</h3>
+            <p>.msi · .exe</p>
+          </a>
+        </div>
+        <p class="version" id="latest-version"></p>
+      </section>
+    </main>
+
+    <footer>
+      <p>MIT licensed · Built with Rust + Tauri · <a href="https://github.com/leandroruel/rusty-cleaner">github.com/leandroruel/rusty-cleaner</a></p>
+    </footer>
+
+    <script>
+      fetch("https://api.github.com/repos/leandroruel/rusty-cleaner/releases/latest")
+        .then((r) => r.json())
+        .then((rel) => {
+          const el = document.getElementById("latest-version");
+          if (el && rel.tag_name) el.textContent = `Latest release: ${rel.tag_name}`;
+        })
+        .catch(() => {});
+    </script>
+  </body>
+</html>
