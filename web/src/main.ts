@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getLocale, loadLocale, number, setLocale, t, type Locale } from "./i18n";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/500.css";
 import "@fontsource/manrope/600.css";
@@ -47,15 +48,11 @@ type EmptyTrashResult = {
   failed: number;
 };
 
-const featureLabels: Record<FeatureKey, string> = {
-  orphan: "Dados antigos de apps",
-  temp: "Temporários",
-  "chat-media": "Mídia de mensageiros",
-  trash: "Lixeira",
-  browser: "Navegadores",
-  duplicates: "Duplicados",
-  "large-old": "Grandes e antigos",
-};
+const featureKeys: FeatureKey[] = ["orphan", "temp", "chat-media", "trash", "browser", "duplicates", "large-old"];
+
+function featureLabels(): Record<FeatureKey, string> {
+  return Object.fromEntries(featureKeys.map((key) => [key, t(`feature.${key}`)])) as Record<FeatureKey, string>;
+}
 
 const featureColors: Record<FeatureKey, string> = {
   orphan: "var(--purple)",
@@ -101,6 +98,7 @@ const openLogButton = getElement<HTMLButtonElement>("open-log-button");
 const excludeInput = getElement<HTMLInputElement>("exclude-input");
 const excludeAdd = getElement<HTMLButtonElement>("exclude-add");
 const excludeList = getElement<HTMLUListElement>("exclude-list");
+const languageSelect = getElement<HTMLSelectElement>("language-select");
 let confirmAction: (() => void) | null = null;
 
 function setTheme(theme: "rusty" | "omarchy"): void {
@@ -120,6 +118,8 @@ async function applySystemTheme(): Promise<void> {
   }
 }
 
+loadLocale();
+applyTranslations();
 void applySystemTheme();
 void refreshMetrics();
 window.setInterval(() => void refreshMetrics(), 3000);
@@ -156,13 +156,35 @@ excludeAdd.addEventListener("click", () => void addExclusion());
 excludeInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") void addExclusion();
 });
+languageSelect.addEventListener("change", () => {
+  setLocale(languageSelect.value as Locale);
+  applyTranslations();
+  renderFindings();
+  updateSelectionBar();
+});
+
+function applyTranslations(): void {
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n!);
+  });
+  document.querySelectorAll<HTMLElement>("[data-i18n-placeholder]").forEach((el) => {
+    (el as HTMLInputElement).placeholder = t(el.dataset.i18nPlaceholder!);
+  });
+  document.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAria!));
+  });
+  scanButtonLabel.textContent = scanning ? t("scan.stop") : (findings.length > 0 ? t("scan.again") : t("scan.start"));
+  trashButton.textContent = t("selection.trash");
+  emptyTrashButton.textContent = t("card.empty");
+}
 
 async function openSettings(): Promise<void> {
   settingsOverlay.hidden = false;
   settingsClose.focus();
+  languageSelect.value = getLocale();
   if (!isTauri()) return;
   try {
-    logPathEl.textContent = await invoke<string | null>("log_file_path") ?? "Indisponível";
+    logPathEl.textContent = await invoke<string | null>("log_file_path") ?? t("settings.unavailable");
     renderExclusions(await invoke<string[]>("list_excluded_dirs"));
   } catch (error) {
     showToast(String(error));
@@ -174,7 +196,7 @@ function renderExclusions(dirs: string[]): void {
   if (dirs.length === 0) {
     const empty = document.createElement("li");
     empty.className = "exclude-empty";
-    empty.textContent = "Nenhuma pasta excluída.";
+    empty.textContent = t("settings.noExclusions");
     excludeList.append(empty);
     return;
   }
@@ -186,7 +208,7 @@ function renderExclusions(dirs: string[]): void {
     const remove = document.createElement("button");
     remove.className = "icon-button";
     remove.type = "button";
-    remove.setAttribute("aria-label", `Remover ${dir}`);
+    remove.setAttribute("aria-label", t("settings.remove", { path: dir }));
     remove.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
     remove.addEventListener("click", () => {
       invoke<string[]>("remove_excluded_dir", { path: dir })
@@ -230,15 +252,12 @@ selectAll.addEventListener("change", () => {
 trashButton.addEventListener("click", () => {
   const size = findings.filter((item) => selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
   openConfirm(
-    `${selectedPaths.size.toLocaleString("pt-BR")} itens · ${formatBytes(size)} serão movidos para a lixeira.`,
+    t("confirm.trash", { count: number(selectedPaths.size), size: formatBytes(size) }),
     () => void trashSelected(),
   );
 });
 emptyTrashButton.addEventListener("click", () => {
-  openConfirm(
-    "Todo o conteúdo da lixeira será apagado permanentemente. Esta ação não pode ser desfeita.",
-    () => void emptyTrash(),
-  );
+  openConfirm(t("confirm.emptyTrash"), () => void emptyTrash());
 });
 confirmCancel.addEventListener("click", () => { confirmOverlay.hidden = true; });
 confirmOverlay.addEventListener("click", (event) => {
@@ -310,7 +329,7 @@ function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** unitIndex;
-  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: unitIndex === 0 ? 0 : 1 }).format(value)} ${units[unitIndex]}`;
+  return `${new Intl.NumberFormat(getLocale(), { maximumFractionDigits: unitIndex === 0 ? 0 : 1 }).format(value)} ${units[unitIndex]}`;
 }
 
 function showToast(message: string): void {
@@ -334,7 +353,7 @@ const scanProgressTime = getElement<HTMLSpanElement>("scan-progress-time");
 
 function setScanButtonState(running: boolean): void {
   scanButton.classList.toggle("is-running", running);
-  scanButtonLabel.textContent = running ? "Parar varredura" : "Iniciar varredura";
+  scanButtonLabel.textContent = running ? t("scan.stop") : t("scan.start");
 }
 
 function startElapsedTimer(): void {
@@ -353,7 +372,7 @@ function stopElapsedTimer(): void {
 
 async function runScan(): Promise<void> {
   if (!isTauri()) {
-    showToast("Abra o aplicativo desktop com `npm run tauri dev` para executar a varredura.");
+    showToast(t("scan.desktopOnly"));
     return;
   }
 
@@ -378,8 +397,8 @@ async function runScan(): Promise<void> {
     for (const [index, feature] of scanOrder.entries()) {
       if (scanCancelled) break;
       currentScanFeature = feature;
-      statusLabel.textContent = `Analisando ${index + 1}/${scanOrder.length}: ${featureLabels[feature]}`;
-      getElement("scan-caption").textContent = `Varrendo ${featureLabels[feature].toLowerCase()}...`;
+      statusLabel.textContent = `${t("scan.scanning")} ${index + 1}/${scanOrder.length}: ${featureLabels()[feature]}`;
+      getElement("scan-caption").textContent = `${t("scan.scanning").toLowerCase()} ${featureLabels()[feature].toLowerCase()}...`;
       try {
         const result = await invoke<ScanResult>("scan_candidates", { feature });
         platform = result.platform;
@@ -394,20 +413,20 @@ async function runScan(): Promise<void> {
     const elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = findings.length === 0;
     statusLabel.textContent = scanCancelled
-      ? "Análise interrompida"
-      : `${platformName(platform)} · análise concluída`;
+      ? t("app.cancelled")
+      : `${platformName(platform)} · ${t("app.done")}`;
     getElement("system-status").classList.remove("is-busy");
     getElement("scan-caption").textContent = scanCancelled
-      ? `Varredura cancelada · ${findings.length.toLocaleString("pt-BR")} itens parciais`
-      : `${findings.length.toLocaleString("pt-BR")} itens encontrados em ${elapsed.toFixed(1).replace(".", ",")}s`;
+      ? t("scan.partial", { count: number(findings.length) })
+      : t("scan.summary", { count: number(findings.length), time: elapsed.toFixed(1).replace(".", ",") });
     if (failed > 0) {
-      showToast(`${failed} ${failed === 1 ? "categoria falhou" : "categorias falharam"} durante a varredura.`);
+      showToast(failed === 1 ? t("scan.categoryFailed") : t("scan.categoriesFailed", { count: failed }));
     }
   } finally {
     scanning = false;
     stopElapsedTimer();
     setScanButtonState(false);
-    scanButtonLabel.textContent = "Escanear novamente";
+    scanButtonLabel.textContent = t("scan.again");
     getElement("scan-visual").classList.remove("is-scanning");
   }
 }
@@ -437,7 +456,7 @@ function renderSummary(result: ScanResult): void {
   }
 
   getElement("total-size").textContent = formatBytes(totalSize);
-  getElement("item-count").textContent = findings.length.toLocaleString("pt-BR");
+  getElement("item-count").textContent = number(findings.length);
   getElement("space-count").textContent = formatBytes(totalSize);
   getElement("category-count").textContent = `${counts.size} / 7`;
   getElement("duration-count").textContent = `${(result.elapsedMs / 1000).toFixed(1).replace(".", ",")}s`;
@@ -448,7 +467,7 @@ function renderSummary(result: ScanResult): void {
   if (topFeatures.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-breakdown";
-    empty.textContent = "Nenhum candidato encontrado nas pastas verificadas.";
+    empty.textContent = t("scan.noneFound");
     breakdown.append(empty);
   } else {
     for (const [feature, data] of topFeatures) {
@@ -458,7 +477,7 @@ function renderSummary(result: ScanResult): void {
       row.dataset.filter = feature;
       row.innerHTML = `<span class="found-label"><i></i></span><span class="found-value"></span>`;
       row.querySelector<HTMLElement>(".found-label")!.style.setProperty("--swatch", featureColors[feature]);
-      row.querySelector<HTMLElement>(".found-label")!.append(document.createTextNode(featureLabels[feature]));
+      row.querySelector<HTMLElement>(".found-label")!.append(document.createTextNode(featureLabels()[feature]));
       row.querySelector<HTMLElement>(".found-value")!.textContent = formatBytes(data.size);
       row.addEventListener("click", () => openResults(feature));
       breakdown.append(row);
@@ -467,7 +486,7 @@ function renderSummary(result: ScanResult): void {
 
   const browser = counts.get("browser") ?? { count: 0, size: 0 };
   getElement("browser-size").textContent = formatBytes(browser.size);
-  getElement("browser-detail").textContent = `${browser.count.toLocaleString("pt-BR")} arquivos candidatos`;
+  getElement("browser-detail").textContent = t("card.candidates", { count: number(browser.count) });
   const chips = getElement("browser-chips");
   chips.replaceChildren();
   const byBrowser = new Map<string, { count: number; size: number }>();
@@ -489,9 +508,9 @@ function renderSummary(result: ScanResult): void {
   renderTrashCard(trash.count, trash.size);
   const chat = counts.get("chat-media") ?? { count: 0, size: 0 };
   getElement("messenger-size").textContent = formatBytes(chat.size);
-  getElement("telegram-count").textContent = `${messengerCounts.telegram.toLocaleString("pt-BR")} itens`;
-  getElement("discord-count").textContent = `${messengerCounts.discord.toLocaleString("pt-BR")} itens`;
-  getElement("whatsapp-count").textContent = `${messengerCounts.whatsapp.toLocaleString("pt-BR")} itens`;
+  getElement("telegram-count").textContent = t("card.items", { count: number(messengerCounts.telegram) });
+  getElement("discord-count").textContent = t("card.items", { count: number(messengerCounts.discord) });
+  getElement("whatsapp-count").textContent = t("card.items", { count: number(messengerCounts.whatsapp) });
 }
 
 function visibleFindings(): Finding[] {
@@ -522,8 +541,8 @@ function renderFindings(): void {
     cell.colSpan = 5;
     cell.className = "table-empty";
     cell.textContent = findings.length === 0
-      ? "Inicie uma varredura para revisar os candidatos. Nenhum arquivo será apagado."
-      : "Nenhum item encontrado nesta categoria.";
+      ? t("results.empty")
+      : t("results.emptyFilter");
     row.append(cell);
     body.append(row);
   } else {
@@ -535,7 +554,7 @@ function renderFindings(): void {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = selectedPaths.has(item.path);
-      checkbox.setAttribute("aria-label", `Selecionar ${item.name}`);
+      checkbox.setAttribute("aria-label", t("results.selectItem", { name: item.name }));
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           selectedPaths.add(item.path);
@@ -560,7 +579,7 @@ function renderFindings(): void {
       const tag = document.createElement("span");
       tag.className = "feature-tag";
       tag.style.setProperty("--tag-color", featureColors[item.feature]);
-      tag.textContent = featureLabels[item.feature];
+      tag.textContent = featureLabels()[item.feature];
       featureCell.append(tag);
 
       const sizeCell = document.createElement("td");
@@ -569,7 +588,7 @@ function renderFindings(): void {
 
       const ageCell = document.createElement("td");
       ageCell.className = "numeric-cell muted-cell";
-      ageCell.textContent = item.ageDays === null ? "—" : `${item.ageDays.toLocaleString("pt-BR")} dias`;
+      ageCell.textContent = item.ageDays === null ? "—" : t("table.days", { count: number(item.ageDays) });
       row.append(selectCell, fileCell, featureCell, sizeCell, ageCell);
       body.append(row);
     }
@@ -582,11 +601,11 @@ function renderFindings(): void {
     footer.hidden = false;
     const filterNote = activeFilter === "all"
       ? ""
-      : ` no filtro atual (${findings.length.toLocaleString("pt-BR")} no total)`;
-    footerText.textContent = `Exibindo 500 de ${visible.length.toLocaleString("pt-BR")} itens${filterNote}. Use a busca para refinar.`;
+      : t("results.filterNote", { total: number(findings.length) });
+    footerText.textContent = t("results.showing", { shown: 500, total: number(visible.length), filter: filterNote });
   } else if (activeFilter !== "all" && visible.length > 0 && visible.length < findings.length) {
     footer.hidden = false;
-    footerText.textContent = `${visible.length.toLocaleString("pt-BR")} itens neste filtro · ${findings.length.toLocaleString("pt-BR")} no total em todas as categorias.`;
+    footerText.textContent = t("results.filterSummary", { count: number(visible.length), total: number(findings.length) });
   } else {
     footer.hidden = true;
   }
@@ -602,13 +621,15 @@ function updateSelectionBar(): void {
   const count = selectedPaths.size;
   selectionBar.hidden = count === 0;
   const size = findings.filter((item) => selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
-  selectionSummary.textContent = `${count.toLocaleString("pt-BR")} ${count === 1 ? "item selecionado" : "itens selecionados"} · ${formatBytes(size)}`;
+  selectionSummary.textContent = count === 1
+    ? t("selection.summary.one", { size: formatBytes(size) })
+    : t("selection.summary.many", { count: number(count), size: formatBytes(size) });
 }
 
 async function trashSelected(): Promise<void> {
   const paths = [...selectedPaths];
   trashButton.disabled = true;
-  trashButton.textContent = "Movendo...";
+  trashButton.textContent = t("selection.moving");
   try {
     const result = await invoke<TrashResult>("trash_candidates", { paths });
     const trashedSet = new Set(result.trashed);
@@ -616,21 +637,25 @@ async function trashSelected(): Promise<void> {
     for (const path of result.trashed) selectedPaths.delete(path);
     renderFindings();
     if (result.failed.length === 0) {
-      showToast(`${result.trashed.length.toLocaleString("pt-BR")} itens movidos para a lixeira.`);
+      showToast(t("toast.trashed", { count: number(result.trashed.length) }));
     } else {
-      showToast(`${result.trashed.length.toLocaleString("pt-BR")} movidos; ${result.failed.length.toLocaleString("pt-BR")} falharam (ex.: ${result.failed[0].error}).`);
+      showToast(t("toast.trashedPartial", {
+        moved: number(result.trashed.length),
+        failed: number(result.failed.length),
+        error: result.failed[0].error,
+      }));
     }
   } catch (error) {
     showToast(String(error));
   } finally {
     trashButton.disabled = false;
-    trashButton.textContent = "Mover para a lixeira";
+    trashButton.textContent = t("selection.trash");
   }
 }
 
 async function emptyTrash(): Promise<void> {
   emptyTrashButton.disabled = true;
-  emptyTrashButton.textContent = "Esvaziando...";
+  emptyTrashButton.textContent = t("card.emptying");
   try {
     const result = await invoke<EmptyTrashResult>("empty_trash");
     findings = findings.filter((item) => item.feature !== "trash");
@@ -638,17 +663,17 @@ async function emptyTrash(): Promise<void> {
     renderFindings();
     renderTrashCard(0, 0);
     showToast(result.failed === 0
-      ? `Lixeira esvaziada: ${result.removed.toLocaleString("pt-BR")} itens removidos.`
-      : `${result.removed.toLocaleString("pt-BR")} removidos; ${result.failed.toLocaleString("pt-BR")} não puderam ser apagados.`);
+      ? t("toast.trashEmptied", { count: number(result.removed) })
+      : t("toast.trashEmptiedPartial", { removed: number(result.removed), failed: number(result.failed) }));
   } catch (error) {
     showToast(String(error));
   } finally {
-    emptyTrashButton.textContent = "Esvaziar";
+    emptyTrashButton.textContent = t("card.empty");
   }
 }
 
 function renderTrashCard(count: number, size: number): void {
-  getElement("trash-detail").textContent = `${count.toLocaleString("pt-BR")} itens · ${formatBytes(size)}`;
+  getElement("trash-detail").textContent = t("card.trashItems", { count: number(count), size: formatBytes(size) });
   emptyTrashButton.disabled = count === 0;
 }
 
