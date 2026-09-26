@@ -1,3 +1,4 @@
+pub mod activity_log;
 pub mod browser;
 pub mod chat_media;
 pub mod duplicates;

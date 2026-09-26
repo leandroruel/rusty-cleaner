@@ -39,11 +39,22 @@ async fn scan_candidates(
     rusty_cleaner::scanner::set_progress_callback(Some(Box::new(move |path| {
         let _ = app.emit("scan-progress", path.to_string_lossy().into_owned());
     })));
+    let feature_label = selected_feature.map(|f| f.to_string());
     let findings = tauri::async_runtime::spawn_blocking(move || scan(selected_feature))
         .await
         .map_err(|error| error.to_string())?;
     rusty_cleaner::scanner::set_progress_callback(None);
     let elapsed_ms = started.elapsed().as_millis();
+
+    rusty_cleaner::activity_log::record(
+        "scan",
+        &format!(
+            "feature={} items={} elapsed_ms={}",
+            feature_label.as_deref().unwrap_or("all"),
+            findings.len(),
+            elapsed_ms
+        ),
+    );
 
     Ok(ScanResult {
         findings: findings.into_iter().map(to_view).collect(),
@@ -90,11 +101,20 @@ async fn trash_candidates(paths: Vec<String>) -> Result<TrashResult, String> {
                 continue;
             }
             match trash::delete(&path_buf) {
-                Ok(()) => trashed.push(path),
-                Err(error) => failed.push(TrashFailure {
-                    path,
-                    error: error.to_string(),
-                }),
+                Ok(()) => {
+                    rusty_cleaner::activity_log::record("trash", &path);
+                    trashed.push(path);
+                }
+                Err(error) => {
+                    rusty_cleaner::activity_log::record(
+                        "trash-failed",
+                        &format!("{path} ({error})"),
+                    );
+                    failed.push(TrashFailure {
+                        path,
+                        error: error.to_string(),
+                    });
+                }
             }
         }
         Ok(TrashResult { trashed, failed })
@@ -132,6 +152,10 @@ async fn empty_trash() -> Result<EmptyTrashResult, String> {
                 }
             }
         }
+        rusty_cleaner::activity_log::record(
+            "empty-trash",
+            &format!("removed={removed} failed={failed}"),
+        );
         Ok(EmptyTrashResult { removed, failed })
     })
     .await

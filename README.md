@@ -61,6 +61,10 @@ Run the test suite with:
 cargo test
 ```
 
+## Activity log
+
+Rusty Cleaner keeps an append-only activity log (JSON Lines) with successful scans, failures, files moved to the trash and trash-emptying operations. It lives in the platform data directory (`~/.local/share/rusty-cleaner/activity.log` on Linux, `~/Library/Application Support/rusty-cleaner/activity.log` on macOS, `%APPDATA%\rusty-cleaner\activity.log` on Windows). Logging failures never interrupt a scan.
+
 ## Safety
 
 - Cleaning only moves the files you explicitly select to the system trash, after a confirmation dialog. Nothing is deleted permanently, and items can be restored from the trash.
