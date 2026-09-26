@@ -62,15 +62,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: rusty-cleaner-*
-          merge-multiple: true
+          path: artifacts
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            **/*.deb
-            **/*.AppImage
-            **/*.rpm
-            **/*.dmg
-            **/*.msi
-            **/*.exe
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
+            artifacts/**/*.rpm
+            artifacts/**/*.dmg
+            artifacts/**/*.msi
+            artifacts/**/*.exe
           generate_release_notes: true
