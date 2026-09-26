@@ -117,6 +117,7 @@ button.messenger-row { cursor:pointer; }
 button.messenger-row:hover .messenger-name { color:var(--text); }
 .messenger-row:last-child { border-bottom:0; }
 .app-glyph { display:grid; width:26px; height:26px; flex:none; place-items:center; border:1px solid var(--border); border-radius:6px; font:700 11px var(--font-mono); }
+.app-glyph svg { width:15px; height:15px; }
 .glyph-telegram { color:var(--cyan); background:rgba(51,224,255,.07); }
 .glyph-discord { color:var(--purple); background:rgba(157,77,255,.08); }
 .glyph-whatsapp { color:var(--green); background:rgba(51,255,176,.07); }
