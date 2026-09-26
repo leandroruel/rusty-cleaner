@@ -31,71 +31,67 @@ pub fn trash_dirs() -> Vec<PathBuf> {
 
 pub fn app_data_dirs() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+    #[cfg(target_os = "linux")]
     if let Some(home) = home_dir() {
-        #[cfg(target_os = "linux")]
-        {
-            paths.push(home.join(".config"));
-            paths.push(home.join(".local/share"));
-        }
-        #[cfg(target_os = "macos")]
+        paths.push(home.join(".config"));
+        paths.push(home.join(".local/share"));
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = home_dir() {
         paths.push(home.join("Library/Application Support"));
-        #[cfg(windows)]
-        if let Some(appdata) = env::var_os("APPDATA") {
-            paths.push(PathBuf::from(appdata));
-        }
+    }
+    #[cfg(windows)]
+    if let Some(appdata) = env::var_os("APPDATA") {
+        paths.push(PathBuf::from(appdata));
     }
     paths
 }
 
 pub fn browser_dirs() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+    #[cfg(target_os = "linux")]
     if let Some(home) = home_dir() {
-        #[cfg(target_os = "linux")]
-        {
-            paths.push(home.join(".cache/mozilla"));
-            paths.push(home.join(".cache/google-chrome"));
-            paths.push(home.join(".config/google-chrome"));
-            paths.push(home.join(".config/chromium"));
-        }
-        #[cfg(target_os = "macos")]
-        {
-            paths.push(home.join("Library/Caches"));
-            paths.push(home.join("Library/Application Support/Google/Chrome"));
-            paths.push(home.join("Library/Application Support/Firefox"));
-        }
-        #[cfg(windows)]
-        if let Some(local) = env::var_os("LOCALAPPDATA") {
-            paths.push(PathBuf::from(local).join("Google/Chrome/User Data"));
-            paths.push(PathBuf::from(local).join("Mozilla/Firefox/Profiles"));
-        }
+        paths.push(home.join(".cache/mozilla"));
+        paths.push(home.join(".cache/google-chrome"));
+        paths.push(home.join(".config/google-chrome"));
+        paths.push(home.join(".config/chromium"));
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = home_dir() {
+        paths.push(home.join("Library/Caches"));
+        paths.push(home.join("Library/Application Support/Google/Chrome"));
+        paths.push(home.join("Library/Application Support/Firefox"));
+    }
+    #[cfg(windows)]
+    if let Some(local) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+        paths.push(local.join("Google/Chrome/User Data"));
+        paths.push(local.join("Mozilla/Firefox/Profiles"));
     }
     paths
 }
 
 pub fn chat_dirs() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+    #[cfg(target_os = "linux")]
     if let Some(home) = home_dir() {
-        #[cfg(target_os = "linux")]
-        {
-            paths.push(home.join(".local/share/TelegramDesktop"));
-            paths.push(home.join(".var/app/org.telegram.desktop"));
-            paths.push(home.join(".config/discord"));
-            paths.push(home.join(".var/app/com.rtosta.zapzap"));
-            paths.push(home.join(".config/whatsdesk"));
-            paths.push(home.join(".config/whatsapp-for-linux"));
-        }
-        #[cfg(target_os = "macos")]
-        {
-            paths.push(home.join("Library/Application Support/Telegram Desktop"));
-            paths.push(home.join("Library/Application Support/discord"));
-            paths.push(home.join("Library/Application Support/WhatsApp"));
-        }
-        #[cfg(windows)]
-        if let Some(roaming) = env::var_os("APPDATA") {
-            paths.push(PathBuf::from(roaming).join("Telegram Desktop"));
-            paths.push(PathBuf::from(roaming).join("discord"));
-            paths.push(PathBuf::from(roaming).join("WhatsApp"));
-        }
+        paths.push(home.join(".local/share/TelegramDesktop"));
+        paths.push(home.join(".var/app/org.telegram.desktop"));
+        paths.push(home.join(".config/discord"));
+        paths.push(home.join(".var/app/com.rtosta.zapzap"));
+        paths.push(home.join(".config/whatsdesk"));
+        paths.push(home.join(".config/whatsapp-for-linux"));
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = home_dir() {
+        paths.push(home.join("Library/Application Support/Telegram Desktop"));
+        paths.push(home.join("Library/Application Support/discord"));
+        paths.push(home.join("Library/Application Support/WhatsApp"));
+    }
+    #[cfg(windows)]
+    if let Some(roaming) = env::var_os("APPDATA").map(PathBuf::from) {
+        paths.push(roaming.join("Telegram Desktop"));
+        paths.push(roaming.join("discord"));
+        paths.push(roaming.join("WhatsApp"));
     }
     paths
 }
@@ -104,26 +100,34 @@ pub fn chat_dirs() -> Vec<PathBuf> {
 /// application data left behind by uninstalled programs. Returns an empty set
 /// on platforms or setups where no package database is available.
 pub fn installed_packages() -> std::collections::HashSet<String> {
-    let mut packages = std::collections::HashSet::new();
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
-        if let Some(output) = run_quiet("pacman", &["-Qq"]) {
-            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        let mut packages = std::collections::HashSet::new();
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(output) = run_quiet("pacman", &["-Qq"]) {
+                packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+            }
+            if let Some(output) = run_quiet("dpkg-query", &["-W", "-f=${Package}\n"]) {
+                packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+            }
+            if let Some(output) = run_quiet("flatpak", &["list", "--app", "--columns=application"])
+            {
+                packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+            }
         }
-        if let Some(output) = run_quiet("dpkg-query", &["-W", "-f=${Package}\n"]) {
-            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(output) = run_quiet("brew", &["list", "--versions", "-1"]) {
+                packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+            }
         }
-        if let Some(output) = run_quiet("flatpak", &["list", "--app", "--columns=application"]) {
-            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
-        }
+        packages
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
-        if let Some(output) = run_quiet("brew", &["list", "--versions", "-1"]) {
-            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
-        }
+        std::collections::HashSet::new()
     }
-    packages
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
