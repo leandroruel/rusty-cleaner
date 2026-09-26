@@ -1,0 +1,13 @@
+[package]
+name = "rusty-cleaner"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Cross-platform system cleaner and storage scanner"
+license = "MIT"
+
+[[bin]]
+name = "rusty-cleaner"
+path = "src/main.rs"
+
+[dependencies]

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CleanOS Pro — mockup</title>
+<style>
+  :root {
+    --bg: #0b0e13;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --border: #232a38;
+    --text: #e7ebf3;
+    --text-dim: #8a93a6;
+    --text-faint: #5b6377;
+    --cyan: #33e0ff;
+    --pink: #ff3df0;
+    --purple: #9d4dff;
+    --green: #33ffb0;
+    --amber: #ffc233;
+    --red: #ff4d6a;
+    --font: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Consolas', monospace;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  /* title bar */
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .titlebar .brand { display: flex; align-items: center; gap: 8px; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dots span:nth-child(1){ background:#ff5f57; }
+  .dots span:nth-child(2){ background:#febc2e; }
+  .dots span:nth-child(3){ background:#28c840; }
+  .app-name { font-size: 13px; font-weight: 600; letter-spacing: .04em; color: var(--text-dim); margin-left: 6px; }
+  .app-name b { color: var(--cyan); }
+  .status-pill {
+    font-size: 11px; color: var(--green); border: 1px solid rgba(51,255,176,.35);
+    background: rgba(51,255,176,.08); padding: 3px 10px; border-radius: 999px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* grid */
+  .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px; flex: 1; min-height: 0; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  .card-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-dim); }
+  .card-sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+  /* ===== scan card ===== */
+  .scan-card { align-items: center; justify-content: center; gap: 14px; padding: 22px 14px; text-align: center; }
+  .scan-ring-wrap { position: relative; width: 168px; height: 168px; display:flex; align-items:center; justify-content:center; }
+
+  .ring-loading {
+    width: 100%; height: 100%; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.06);
+    border-top-color: var(--cyan);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ring-done {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: conic-gradient(from 220deg, var(--cyan), var(--purple), var(--pink), var(--amber), var(--cyan));
+    display: flex; align-items: center; justify-content: center;
+    animation: spin-slow 6s linear infinite;
+  }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+  .ring-done::after {
+    content: "";
+    width: 74%; height: 74%; border-radius: 50%;
+    background: var(--panel);
+  }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .ring-center .num { font-size: 26px; font-weight: 700; font-family: var(--font-mono); }
+  .ring-center .lbl { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+  .scan-status { font-size: 13px; color: var(--text-dim); }
+  .scan-status b { color: var(--text); }
+
+  .scan-actions { display: flex; gap: 8px; width: 100%; margin-top: 4px; }
+  .btn {
+    font-family: inherit; font-size: 12px; font-weight: 600; border-radius: 7px;
+    padding: 9px 14px; cursor: pointer; border: 1px solid var(--border); color: var(--text);
+    background: var(--panel-2); flex: 1; letter-spacing: .01em;
+  }
+  .btn.primary {
+    background: var(--cyan);
+    border: none; color: #05070a;
+  }
+  .btn.ghost { background: transparent; }
+
+  /* mini toggle rows under scan */
+  .scan-found { width: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .found-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; padding: 6px 10px; background: var(--panel-2); border-radius: 6px; border: 1px solid var(--border); }
+  .found-row .l { color: var(--text-dim); display:flex; align-items:center; gap:8px;}
+  .found-row .l .swatch { width: 7px; height: 7px; border-radius: 2px; }
+  .found-row .v { font-family: var(--font-mono); color: var(--text); }
+
+  /* ===== right column ===== */
+  .col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+  .clean-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 4px; border-bottom: 1px solid var(--border);
+  }
+  .clean-row:last-child { border-bottom: none; }
+  .icon-box {
+    width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0; border: 1px solid var(--border);
+  }
+  .clean-row .info { flex: 1; min-width: 0; }
+  .clean-row .info .t { font-size: 12.5px; font-weight: 600; }
+  .clean-row .info .s { font-size: 10.5px; color: var(--text-faint); margin-top: 1px; }
+  .clean-row .size { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); margin-right: 4px; }
+
+  .switch { position: relative; width: 34px; height: 19px; border-radius: 999px; background: #262c39; border: 1px solid var(--border); flex-shrink: 0; }
+  .switch.on { background: var(--cyan); border-color: transparent; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch.on::after { transform: translateX(15px); }
+
+  .browsers-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .browser-chip { font-size: 10.5px; color: var(--text-dim); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; display:flex; align-items:center; gap:5px; }
+  .browser-chip .dot { width:6px; height:6px; border-radius:50%; }
+
+  .apps-row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .app-chip { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; }
+  .app-chip .dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  .clean-btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+  .trash-card .trash-fill { display:flex; align-items:center; gap: 14px; }
+  .trash-icon { width: 46px; height: 46px; border-radius: 10px; background: rgba(255,77,106,.1); border: 1px solid rgba(255,77,106,.3); display:flex; align-items:center; justify-content:center; font-size: 20px; }
+  .trash-info .t { font-size: 13px; font-weight: 700; }
+  .trash-info .s { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+  /* ===== bottom monitor bar ===== */
+  .monitor {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .mon-item { display: flex; flex-direction: column; gap: 6px; }
+  .mon-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .mon-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .mon-value { font-size: 13px; font-family: var(--font-mono); font-weight: 700; }
+  .mon-bar { height: 5px; border-radius: 999px; background: #1c212c; overflow: hidden; }
+  .mon-bar > span { display: block; height: 100%; border-radius: 999px; }
+
+  .bar-cpu { background: var(--cyan); width: 42%; }
+  .bar-mem { background: var(--pink); width: 68%; }
+  .bar-temp { background: var(--amber); width: 55%; }
+  .bar-disk { background: var(--green); width: 30%; }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    .monitor { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+  <div class="titlebar">
+    <div class="brand">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="app-name"><b>Clean</b>OS Pro</span>
+    </div>
+    <div class="status-pill"><span class="dot"></span>Sistema saudável</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- Scan card -->
+    <div class="card scan-card">
+      <div class="card-title" style="align-self:flex-start;">Escanear arquivos órfãos</div>
+      <div class="scan-ring-wrap">
+        <div class="ring-done"></div>
+        <div class="ring-center">
+          <div class="num">2,4 GB</div>
+          <div class="lbl">encontrados</div>
+        </div>
+      </div>
+      <div class="scan-status">Varredura concluída em <b>8,2s</b> · 1.348 itens</div>
+
+      <div class="scan-found">
+        <div class="found-row">
+          <div class="l"><span class="swatch" style="background:var(--cyan)"></span>Cache de apps</div>
+          <div class="v">960 MB</div>
+        </div>
+        <div class="found-row">
+          <div class="l"><span class="swatch" style="background:var(--pink)"></span>Logs e crash reports</div>
+          <div class="v">310 MB</div>
+        </div>
+        <div class="found-row">
+          <div class="l"><span class="swatch" style="background:var(--purple)"></span>Preferências órfãs</div>
+          <div class="v">1,1 GB</div>
+        </div>
+      </div>
+
+      <div class="scan-actions">
+        <button class="btn ghost">Escanear novamente</button>
+        <button class="btn primary">Limpar tudo</button>
+      </div>
+    </div>
+
+    <!-- right column -->
+    <div class="col">
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Navegadores</div>
+            <div class="card-sub">cache, cookies e histórico temporário</div>
+          </div>
+          <div class="size" style="font-family:var(--font-mono); font-size:12px; color:var(--text-dim);">1,8 GB</div>
+        </div>
+
+        <div class="browsers-row">
+          <div class="browser-chip"><span class="dot" style="background:var(--amber)"></span>Chrome · 820 MB</div>
+          <div class="browser-chip"><span class="dot" style="background:var(--purple)"></span>Firefox · 410 MB</div>
+          <div class="browser-chip"><span class="dot" style="background:var(--cyan)"></span>Edge · 340 MB</div>
+          <div class="browser-chip"><span class="dot" style="background:var(--pink)"></span>Safari · 230 MB</div>
+        </div>
+
+        <div class="clean-btn-row">
+          <button class="btn primary" style="flex:none; padding:8px 16px;">Limpar navegadores</button>
+        </div>
+      </div>
+
+      <div class="card trash-card">
+        <div class="card-head">
+          <div class="trash-fill">
+            <div class="trash-icon">🗑</div>
+            <div class="trash-info">
+              <div class="t">Lixeira</div>
+              <div class="s">312 itens · 4,6 GB</div>
+            </div>
+          </div>
+          <button class="btn" style="flex:none; padding:8px 16px; border-color: rgba(255,77,106,.35); color: var(--red);">Esvaziar</button>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1;">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Mídia de mensageiros</div>
+            <div class="card-sub">fotos, vídeos e áudios recebidos</div>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:12px; color:var(--text-dim);">6,1 GB</div>
+        </div>
+
+        <div class="clean-row">
+          <div class="icon-box" style="background:rgba(51,255,176,.08); border-color:rgba(51,255,176,.3);">📱</div>
+          <div class="info">
+            <div class="t">WhatsApp</div>
+            <div class="s">3,2 GB em mídia recebida</div>
+          </div>
+          <div class="switch on"></div>
+        </div>
+        <div class="clean-row">
+          <div class="icon-box" style="background:rgba(51,224,255,.08); border-color:rgba(51,224,255,.3);">✈️</div>
+          <div class="info">
+            <div class="t">Telegram</div>
+            <div class="s">2,1 GB em cache de mídia</div>
+          </div>
+          <div class="switch on"></div>
+        </div>
+        <div class="clean-row">
+          <div class="icon-box" style="background:rgba(255,61,240,.08); border-color:rgba(255,61,240,.3);">💬</div>
+          <div class="info">
+            <div class="t">Discord</div>
+            <div class="s">820 MB em anexos</div>
+          </div>
+          <div class="switch"></div>
+        </div>
+
+        <div class="clean-btn-row">
+          <button class="btn primary" style="flex:none; padding:8px 16px;">Limpar selecionados</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- bottom monitor -->
+  <div class="monitor">
+    <div class="mon-item">
+      <div class="mon-top"><span class="mon-label">CPU</span><span class="mon-value">42%</span></div>
+      <div class="mon-bar"><span class="bar-cpu"></span></div>
+    </div>
+    <div class="mon-item">
+      <div class="mon-top"><span class="mon-label">Memória</span><span class="mon-value">10,9 / 16 GB</span></div>
+      <div class="mon-bar"><span class="bar-mem"></span></div>
+    </div>
+    <div class="mon-item">
+      <div class="mon-top"><span class="mon-label">Temperatura</span><span class="mon-value">61°C</span></div>
+      <div class="mon-bar"><span class="bar-temp"></span></div>
+    </div>
+    <div class="mon-item">
+      <div class="mon-top"><span class="mon-label">Disco</span><span class="mon-value">231 / 512 GB</span></div>
+      <div class="mon-bar"><span class="bar-disk"></span></div>
+    </div>
+  </div>
+
+</body>
+</html>
