@@ -16,6 +16,7 @@ const scanProgressTime = getElement<HTMLSpanElement>("scan-progress-time");
 
 let elapsedTimer = 0;
 let scanStartedAt = 0;
+let failedScans: { path: string; date: string; error: string }[] = [];
 
 function setScanButtonState(running: boolean): void {
   scanButton.classList.toggle("is-running", running);
@@ -52,6 +53,8 @@ export async function runScan(): Promise<void> {
   state.selectedPaths.clear();
   state.activeFilter = "all";
   getElement<HTMLSelectElement>("feature-filter").value = "all";
+  failedScans = [];
+  renderFailedScans();
   renderFindings();
   startElapsedTimer();
 
@@ -70,8 +73,14 @@ export async function runScan(): Promise<void> {
         platform = result.platform;
         state.findings.push(...result.findings);
         renderSummary({ findings: state.findings, elapsedMs: performance.now() - started, platform });
-      } catch {
+      } catch (error) {
         failed += 1;
+        failedScans.push({
+          path: t(`feature.${feature}`),
+          date: new Date().toLocaleString(),
+          error: String(error),
+        });
+        renderFailedScans();
       }
     }
     state.currentScanFeature = null;
@@ -246,6 +255,32 @@ function browserIcon(name: string): string {
   return icons[name] ?? `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
 }
 
+function renderFailedScans(): void {
+  const section = getElement("failed-scans");
+  const summary = getElement("failed-summary");
+  const body = getElement("failed-body");
+  if (failedScans.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  summary.textContent = t("failed.title", { count: formatCount(failedScans.length) });
+  body.replaceChildren();
+  for (const item of failedScans) {
+    const row = document.createElement("tr");
+    const pathCell = document.createElement("td");
+    pathCell.textContent = item.path;
+    const dateCell = document.createElement("td");
+    dateCell.className = "numeric-cell muted-cell";
+    dateCell.textContent = item.date;
+    const errorCell = document.createElement("td");
+    errorCell.className = "muted-cell";
+    errorCell.textContent = item.error;
+    row.append(pathCell, dateCell, errorCell);
+    body.append(row);
+  }
+}
+
 export function initScan(): void {
   scanButton.addEventListener("click", () => {
     if (state.scanning) {
@@ -253,6 +288,12 @@ export function initScan(): void {
     } else {
       void runScan();
     }
+  });
+  getElement("failed-toggle").addEventListener("click", () => {
+    const wrap = getElement("failed-table-wrap");
+    const toggle = getElement("failed-toggle");
+    wrap.hidden = !wrap.hidden;
+    toggle.setAttribute("aria-expanded", String(!wrap.hidden));
   });
 
   if (isTauri()) {

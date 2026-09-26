@@ -148,6 +148,20 @@
           </div>
         </section>
 
+        <section class="failed-scans" id="failed-scans" hidden>
+          <button class="failed-toggle" id="failed-toggle" type="button" aria-expanded="false">
+            <span class="failed-icon" aria-hidden="true">⚠</span>
+            <span id="failed-summary"></span>
+            <span class="failed-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="failed-table-wrap" id="failed-table-wrap" hidden>
+            <table>
+              <thead><tr><th scope="col" data-i18n="table.file">FILE</th><th scope="col" data-i18n="failed.date">SCAN DATE</th><th scope="col" data-i18n="failed.error">ERROR</th></tr></thead>
+              <tbody id="failed-body"></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="monitor-bar" aria-label="Scan and system summary">
           <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.items">ITEMS FOUND</span><strong id="item-count">0</strong></div>
           <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.space">SPACE LISTED</span><strong id="space-count">0 B</strong></div>

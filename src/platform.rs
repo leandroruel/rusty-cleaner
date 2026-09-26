@@ -83,6 +83,20 @@ pub fn chat_dirs() -> Vec<PathBuf> {
         paths.push(home.join(".config/Signal"));
         paths.push(home.join(".config/Slack"));
         paths.push(home.join(".config/Element"));
+        // Telegram Desktop can run from any folder (e.g. Downloads/Telegram-Desktop).
+        if let Ok(downloads) = home.join("Downloads").read_dir() {
+            for entry in downloads.flatten() {
+                let path = entry.path();
+                if path.is_dir()
+                    && path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| name.to_lowercase().contains("telegram"))
+                {
+                    paths.push(path);
+                }
+            }
+        }
     }
     #[cfg(target_os = "macos")]
     if let Some(home) = home_dir() {
@@ -101,6 +115,22 @@ pub fn chat_dirs() -> Vec<PathBuf> {
         paths.push(roaming.join("Signal"));
         paths.push(roaming.join("Slack"));
         paths.push(roaming.join("Element"));
+        // Telegram Desktop can run from any folder (e.g. Downloads\Telegram-Desktop).
+        if let Some(home) = home_dir() {
+            if let Ok(downloads) = home.join("Downloads").read_dir() {
+                for entry in downloads.flatten() {
+                    let path = entry.path();
+                    if path.is_dir()
+                        && path
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .is_some_and(|name| name.to_lowercase().contains("telegram"))
+                    {
+                        paths.push(path);
+                    }
+                }
+            }
+        }
     }
     paths
 }

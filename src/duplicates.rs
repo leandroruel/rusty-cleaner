@@ -8,9 +8,23 @@ use std::hash::Hasher;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+/// Shared component directories (WebView2, Electron, etc.) where identical
+/// files belong to different apps and must not be treated as removable
+/// duplicates. Deleting one copy breaks the app that owns it.
+fn is_shared_component(path: &Path) -> bool {
+    let text = path.to_string_lossy().to_lowercase();
+    text.contains("ebwebview")
+        || text.contains("webview2")
+        || text.contains("speech recognition")
+        || text.contains("widevinecdm")
+        || text.contains("subresource filter")
+}
+
 pub fn scan() -> Vec<Finding> {
     let roots = platform::home_dir().into_iter().collect::<Vec<_>>();
-    let files = scanner::walk_files(&roots, 12, |_, metadata| metadata.len() >= 1_048_576);
+    let files = scanner::walk_files(&roots, 12, |path, metadata| {
+        metadata.len() >= 1_048_576 && !is_shared_component(path)
+    });
     let mut by_size: HashMap<u64, Vec<_>> = HashMap::new();
     for path in files {
         if let Ok(metadata) = std::fs::metadata(&path) {
@@ -86,8 +100,8 @@ fn same_contents(left_path: &Path, right_path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::same_contents;
-    use std::{fs, time::SystemTime};
+    use super::{is_shared_component, same_contents};
+    use std::{fs, path::Path, time::SystemTime};
 
     #[test]
     fn confirms_bytes_after_hash_candidates_match() {
@@ -111,5 +125,18 @@ mod tests {
         assert!(!same_contents(&identical, &different));
 
         fs::remove_dir_all(test_dir).unwrap();
+    }
+
+    #[test]
+    fn excludes_shared_component_duplicates() {
+        assert!(is_shared_component(Path::new(
+            "C:/Users/App/EBWebView/Speech Recognition/1.0/speech.dll"
+        )));
+        assert!(is_shared_component(Path::new(
+            "/home/user/.config/app/EBWebView/WidevineCdm/widevine.so"
+        )));
+        assert!(!is_shared_component(Path::new(
+            "/home/user/Downloads/photo.jpg"
+        )));
     }
 }

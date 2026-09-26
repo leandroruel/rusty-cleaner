@@ -247,10 +247,15 @@ fn system_metrics() -> SystemMetrics {
         })
         .unwrap_or((0, 0));
 
+    // Match the OS task manager: "in use" is total minus available, not the
+    // kernel's used figure (which excludes cache/buffers differently per OS).
+    let memory_total = system.total_memory();
+    let memory_used = memory_total.saturating_sub(system.available_memory());
+
     SystemMetrics {
         cpu_percent: system.global_cpu_usage(),
-        memory_used: system.used_memory(),
-        memory_total: system.total_memory(),
+        memory_used,
+        memory_total,
         disk_used,
         disk_total,
     }
