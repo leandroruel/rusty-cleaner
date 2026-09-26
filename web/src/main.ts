@@ -119,7 +119,6 @@ async function applySystemTheme(): Promise<void> {
 }
 
 loadLocale();
-applyTranslations();
 void applySystemTheme();
 void refreshMetrics();
 window.setInterval(() => void refreshMetrics(), 3000);
@@ -350,6 +349,8 @@ const scanButtonLabel = getElement<HTMLSpanElement>("scan-button-label");
 const scanProgress = getElement<HTMLElement>("scan-progress");
 const scanProgressPath = getElement<HTMLSpanElement>("scan-progress-path");
 const scanProgressTime = getElement<HTMLSpanElement>("scan-progress-time");
+
+applyTranslations();
 
 function setScanButtonState(running: boolean): void {
   scanButton.classList.toggle("is-running", running);
