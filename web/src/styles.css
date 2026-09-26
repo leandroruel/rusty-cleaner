@@ -142,6 +142,8 @@ tbody tr:hover { background:rgba(255,255,255,.018); }
 .table-empty { padding:23px 14px; color:var(--text-faint); text-align:center; }
 .select-col { width:34px; text-align:center; }
 .select-col input { width:14px; height:14px; margin:0; accent-color:var(--cyan); cursor:pointer; }
+.results-footer { flex:none; padding:8px 16px; border-top:1px solid var(--border); background:var(--panel-2); color:var(--amber); font:10px var(--font-mono); }
+.results-footer[hidden] { display:none; }
 .selection-bar { display:flex; align-items:center; justify-content:space-between; flex:none; gap:12px; padding:10px 16px; border-top:1px solid var(--border); background:var(--panel-2); }
 .selection-bar[hidden] { display:none; }
 .selection-bar span { color:var(--text-dim); font:11px var(--font-mono); }

@@ -457,15 +457,21 @@ function renderFindings(): void {
       body.append(row);
     }
 
-    if (visible.length > 500) {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-      cell.colSpan = 5;
-      cell.className = "table-empty";
-      cell.textContent = `Exibindo 500 de ${visible.length.toLocaleString("pt-BR")} itens.`;
-      row.append(cell);
-      body.append(row);
-    }
+  }
+
+  const footer = getElement("results-footer");
+  const footerText = getElement("results-footer-text");
+  if (visible.length > 500) {
+    footer.hidden = false;
+    const filterNote = activeFilter === "all"
+      ? ""
+      : ` no filtro atual (${findings.length.toLocaleString("pt-BR")} no total)`;
+    footerText.textContent = `Exibindo 500 de ${visible.length.toLocaleString("pt-BR")} itens${filterNote}. Use a busca para refinar.`;
+  } else if (activeFilter !== "all" && visible.length > 0 && visible.length < findings.length) {
+    footer.hidden = false;
+    footerText.textContent = `${visible.length.toLocaleString("pt-BR")} itens neste filtro · ${findings.length.toLocaleString("pt-BR")} no total em todas as categorias.`;
+  } else {
+    footer.hidden = true;
   }
 
   const visiblePaths = new Set(visible.map((item) => item.path));
