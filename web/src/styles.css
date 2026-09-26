@@ -72,6 +72,9 @@ h2 { margin:0; font-size:13px; font-weight:700; }
 .scan-actions { display:flex; flex:none; gap:8px; width:100%; margin-top:10px; }
 .scan-toggle { display:flex; align-items:center; justify-content:center; gap:7px; }
 .scan-toggle svg { width:12px; height:12px; flex:none; }
+.scan-toggle .icon-stop { display:none; }
+.scan-toggle.is-running .icon-play { display:none; }
+.scan-toggle.is-running .icon-stop { display:block; }
 .scan-toggle.is-running { border-color:rgba(255,77,106,.45); color:var(--red); }
 .scan-toggle.is-running:hover { background:rgba(255,77,106,.08); }
 .scan-progress { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; margin:0 0 8px; padding:6px 10px; border:1px solid var(--border); border-radius:5px; background:var(--panel-2); }

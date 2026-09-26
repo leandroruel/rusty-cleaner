@@ -252,12 +252,8 @@ const scanButtonLabel = getElement<HTMLSpanElement>("scan-button-label");
 const scanProgress = getElement<HTMLElement>("scan-progress");
 const scanProgressPath = getElement<HTMLSpanElement>("scan-progress-path");
 const scanProgressTime = getElement<HTMLSpanElement>("scan-progress-time");
-const iconPlay = scanButton.querySelector<SVGElement>(".icon-play")!;
-const iconStop = scanButton.querySelector<SVGElement>(".icon-stop")!;
 
 function setScanButtonState(running: boolean): void {
-  iconPlay.style.display = running ? "none" : "";
-  iconStop.style.display = running ? "" : "none";
   scanButton.classList.toggle("is-running", running);
   scanButtonLabel.textContent = running ? "Parar varredura" : "Iniciar varredura";
 }
