@@ -59,6 +59,7 @@
                 <strong class="summary-size" id="browser-size">0 B</strong>
               </div>
               <div class="summary-detail" id="browser-detail">Aguardando análise</div>
+              <div class="browser-chips" id="browser-chips"></div>
               <button class="text-button" type="button" data-filter="browser">Ver arquivos <span aria-hidden="true">→</span></button>
             </section>
 
@@ -70,7 +71,10 @@
                 <h2 id="trash-title">Lixeira</h2>
                 <p id="trash-detail">Aguardando análise</p>
               </div>
-              <button class="button button-outline-danger" type="button" data-filter="trash">Revisar</button>
+              <div class="trash-actions">
+                <button class="text-button" type="button" data-filter="trash">Revisar</button>
+                <button class="button button-outline-danger" id="empty-trash-button" type="button" disabled>Esvaziar</button>
+              </div>
             </section>
 
             <section class="panel messenger-panel" aria-labelledby="messenger-title">

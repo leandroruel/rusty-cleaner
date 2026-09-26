@@ -96,6 +96,41 @@ async fn trash_candidates(paths: Vec<String>) -> Result<TrashResult, String> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct EmptyTrashResult {
+    removed: u64,
+    failed: u64,
+}
+
+#[tauri::command]
+async fn empty_trash() -> Result<EmptyTrashResult, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let mut removed = 0_u64;
+        let mut failed = 0_u64;
+        for root in rusty_cleaner::platform::trash_dirs() {
+            let Ok(entries) = std::fs::read_dir(&root) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let result = if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
+                } else {
+                    std::fs::remove_file(&path)
+                };
+                match result {
+                    Ok(()) => removed += 1,
+                    Err(_) => failed += 1,
+                }
+            }
+        }
+        Ok(EmptyTrashResult { removed, failed })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SystemMetrics {
     cpu_percent: f32,
     memory_used: u64,
@@ -191,6 +226,7 @@ pub fn run() {
             scan_candidates,
             detect_theme,
             trash_candidates,
+            empty_trash,
             system_metrics
         ])
         .run(tauri::generate_context!())

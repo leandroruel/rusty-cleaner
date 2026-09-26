@@ -41,6 +41,11 @@ type SystemMetrics = {
   diskTotal: number;
 };
 
+type EmptyTrashResult = {
+  removed: number;
+  failed: number;
+};
+
 const featureLabels: Record<FeatureKey, string> = {
   orphan: "Dados antigos de apps",
   temp: "Temporários",
@@ -81,6 +86,8 @@ const confirmOverlay = getElement<HTMLElement>("confirm-overlay");
 const confirmText = getElement<HTMLParagraphElement>("confirm-text");
 const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
 const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
+const emptyTrashButton = getElement<HTMLButtonElement>("empty-trash-button");
+let confirmAction: (() => void) | null = null;
 
 function setTheme(theme: "rusty" | "omarchy"): void {
   document.documentElement.dataset.theme = theme;
@@ -115,15 +122,33 @@ selectAll.addEventListener("change", () => {
 });
 trashButton.addEventListener("click", () => {
   const size = findings.filter((item) => selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
-  confirmText.textContent = `${selectedPaths.size.toLocaleString("pt-BR")} itens · ${formatBytes(size)} serão movidos para a lixeira.`;
-  confirmOverlay.hidden = false;
-  confirmCancel.focus();
+  openConfirm(
+    `${selectedPaths.size.toLocaleString("pt-BR")} itens · ${formatBytes(size)} serão movidos para a lixeira.`,
+    () => void trashSelected(),
+  );
+});
+emptyTrashButton.addEventListener("click", () => {
+  openConfirm(
+    "Todo o conteúdo da lixeira será apagado permanentemente. Esta ação não pode ser desfeita.",
+    () => void emptyTrash(),
+  );
 });
 confirmCancel.addEventListener("click", () => { confirmOverlay.hidden = true; });
 confirmOverlay.addEventListener("click", (event) => {
   if (event.target === confirmOverlay) confirmOverlay.hidden = true;
 });
-confirmAccept.addEventListener("click", () => void trashSelected());
+confirmAccept.addEventListener("click", () => {
+  confirmOverlay.hidden = true;
+  confirmAction?.();
+  confirmAction = null;
+});
+
+function openConfirm(message: string, action: () => void): void {
+  confirmText.textContent = message;
+  confirmAction = action;
+  confirmOverlay.hidden = false;
+  confirmCancel.focus();
+}
 resultsButton.addEventListener("click", () => openResults());
 closeResultsButton.addEventListener("click", closeResults);
 window.addEventListener("keydown", (event) => {
@@ -272,8 +297,24 @@ function renderSummary(result: ScanResult): void {
   const browser = counts.get("browser") ?? { count: 0, size: 0 };
   getElement("browser-size").textContent = formatBytes(browser.size);
   getElement("browser-detail").textContent = `${browser.count.toLocaleString("pt-BR")} arquivos candidatos`;
+  const chips = getElement("browser-chips");
+  chips.replaceChildren();
+  const byBrowser = new Map<string, { count: number; size: number }>();
+  for (const item of findings.filter((entry) => entry.feature === "browser")) {
+    const name = browserName(item.path);
+    const current = byBrowser.get(name) ?? { count: 0, size: 0 };
+    current.count += 1;
+    current.size += item.size;
+    byBrowser.set(name, current);
+  }
+  for (const [name, data] of [...byBrowser.entries()].sort((a, b) => b[1].size - a[1].size)) {
+    const chip = document.createElement("span");
+    chip.className = "browser-chip";
+    chip.textContent = `${name} · ${formatBytes(data.size)}`;
+    chips.append(chip);
+  }
   const trash = counts.get("trash") ?? { count: 0, size: 0 };
-  getElement("trash-detail").textContent = `${trash.count.toLocaleString("pt-BR")} itens · ${formatBytes(trash.size)}`;
+  renderTrashCard(trash.count, trash.size);
   const chat = counts.get("chat-media") ?? { count: 0, size: 0 };
   getElement("messenger-size").textContent = formatBytes(chat.size);
   getElement("telegram-count").textContent = `${messengerCounts.telegram.toLocaleString("pt-BR")} itens`;
@@ -372,7 +413,6 @@ function updateSelectionBar(): void {
 }
 
 async function trashSelected(): Promise<void> {
-  confirmOverlay.hidden = true;
   const paths = [...selectedPaths];
   trashButton.disabled = true;
   trashButton.textContent = "Movendo...";
@@ -393,6 +433,41 @@ async function trashSelected(): Promise<void> {
     trashButton.disabled = false;
     trashButton.textContent = "Mover para a lixeira";
   }
+}
+
+async function emptyTrash(): Promise<void> {
+  emptyTrashButton.disabled = true;
+  emptyTrashButton.textContent = "Esvaziando...";
+  try {
+    const result = await invoke<EmptyTrashResult>("empty_trash");
+    findings = findings.filter((item) => item.feature !== "trash");
+    for (const item of [...selectedPaths]) selectedPaths.delete(item);
+    renderFindings();
+    renderTrashCard(0, 0);
+    showToast(result.failed === 0
+      ? `Lixeira esvaziada: ${result.removed.toLocaleString("pt-BR")} itens removidos.`
+      : `${result.removed.toLocaleString("pt-BR")} removidos; ${result.failed.toLocaleString("pt-BR")} não puderam ser apagados.`);
+  } catch (error) {
+    showToast(String(error));
+  } finally {
+    emptyTrashButton.textContent = "Esvaziar";
+  }
+}
+
+function renderTrashCard(count: number, size: number): void {
+  getElement("trash-detail").textContent = `${count.toLocaleString("pt-BR")} itens · ${formatBytes(size)}`;
+  emptyTrashButton.disabled = count === 0;
+}
+
+function browserName(path: string): string {
+  const lower = path.toLowerCase();
+  if (lower.includes("brave")) return "Brave";
+  if (lower.includes("edge")) return "Edge";
+  if (lower.includes("chromium")) return "Chromium";
+  if (lower.includes("chrome")) return "Chrome";
+  if (lower.includes("firefox") || lower.includes("mozilla")) return "Firefox";
+  if (lower.includes("safari")) return "Safari";
+  return "Outros";
 }
 
 async function refreshMetrics(): Promise<void> {
