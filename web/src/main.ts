@@ -136,6 +136,11 @@ if (isTauri()) {
   void listen<string>("scan-progress", (event) => {
     scanProgressPath.textContent = event.payload;
     scanProgressPath.title = event.payload;
+    if (scanning && currentScanFeature === "browser") {
+      const detail = getElement("browser-detail");
+      detail.textContent = `Varrendo: ${event.payload}`;
+      detail.title = event.payload;
+    }
   });
 }
 
@@ -320,6 +325,7 @@ let scanCancelled = false;
 let scanning = false;
 let elapsedTimer = 0;
 let scanStartedAt = 0;
+let currentScanFeature: FeatureKey | null = null;
 
 const scanButtonLabel = getElement<HTMLSpanElement>("scan-button-label");
 const scanProgress = getElement<HTMLElement>("scan-progress");
@@ -371,6 +377,7 @@ async function runScan(): Promise<void> {
   try {
     for (const [index, feature] of scanOrder.entries()) {
       if (scanCancelled) break;
+      currentScanFeature = feature;
       statusLabel.textContent = `Analisando ${index + 1}/${scanOrder.length}: ${featureLabels[feature]}`;
       getElement("scan-caption").textContent = `Varrendo ${featureLabels[feature].toLowerCase()}...`;
       try {
@@ -382,6 +389,7 @@ async function runScan(): Promise<void> {
         failed += 1;
       }
     }
+    currentScanFeature = null;
 
     const elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = findings.length === 0;
