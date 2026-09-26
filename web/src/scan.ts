@@ -146,11 +146,13 @@ function renderSummary(result: ScanResult): void {
   const browser = counts.get("browser") ?? { count: 0, size: 0 };
   getElement("browser-size").textContent = formatBytes(browser.size);
   getElement("browser-detail").textContent = t("card.candidates", { count: formatCount(browser.count) });
+  getElement<HTMLButtonElement>("clean-browser-button").disabled = browser.count === 0;
   renderBrowserChips();
   const trash = counts.get("trash") ?? { count: 0, size: 0 };
   renderTrashCard(trash.count, trash.size);
   const chat = counts.get("chat-media") ?? { count: 0, size: 0 };
   getElement("messenger-size").textContent = formatBytes(chat.size);
+  getElement<HTMLButtonElement>("clean-messenger-button").disabled = chat.count === 0;
   getElement("telegram-count").textContent = t("card.items", { count: formatCount(messengerCounts.telegram) });
   getElement("discord-count").textContent = t("card.items", { count: formatCount(messengerCounts.discord) });
   getElement("whatsapp-count").textContent = t("card.items", { count: formatCount(messengerCounts.whatsapp) });

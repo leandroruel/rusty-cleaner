@@ -74,7 +74,10 @@
               </div>
               <div class="summary-detail" id="browser-detail" data-i18n="card.waiting">Waiting for scan</div>
               <div class="browser-chips" id="browser-chips"></div>
-              <button class="text-button" type="button" data-filter="browser"><span data-i18n="card.review">Review</span> <span aria-hidden="true">→</span></button>
+              <div class="card-actions">
+                <button class="text-button" type="button" data-filter="browser"><span data-i18n="card.review">Review</span> <span aria-hidden="true">→</span></button>
+                <button class="button button-quiet card-clean" id="clean-browser-button" type="button" disabled data-i18n="card.clean">Clean</button>
+              </div>
             </section>
 
             <section class="panel trash-panel" aria-labelledby="trash-title">
@@ -118,6 +121,9 @@
                 </button>
               </div>
               <div class="media-types" id="media-types"></div>
+              <div class="card-actions">
+                <button class="button button-quiet card-clean" id="clean-messenger-button" type="button" disabled data-i18n="card.clean">Clean</button>
+              </div>
             </section>
           </div>
         </section>

@@ -5,6 +5,8 @@ import { renderFindings, updateSelectionBar } from "./results";
 
 const trashButton = getElement<HTMLButtonElement>("trash-button");
 const emptyTrashButton = getElement<HTMLButtonElement>("empty-trash-button");
+const cleanBrowserButton = getElement<HTMLButtonElement>("clean-browser-button");
+const cleanMessengerButton = getElement<HTMLButtonElement>("clean-messenger-button");
 const confirmOverlay = getElement<HTMLElement>("confirm-overlay");
 const confirmText = getElement<HTMLParagraphElement>("confirm-text");
 const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
@@ -66,6 +68,37 @@ async function emptyTrash(): Promise<void> {
   }
 }
 
+async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
+  const items = state.findings.filter((item) => item.feature === feature);
+  if (items.length === 0) return;
+  const size = items.reduce((total, item) => total + item.size, 0);
+  openConfirm(
+    t("card.cleanConfirm", { count: number(items.length), feature: t(`feature.${feature}`), size: formatBytes(size) }),
+    () => void trashPaths(items.map((item) => item.path)),
+  );
+}
+
+async function trashPaths(paths: string[]): Promise<void> {
+  try {
+    const result = await invoke<TrashResult>("trash_candidates", { paths });
+    const trashedSet = new Set(result.trashed);
+    state.findings = state.findings.filter((item) => !trashedSet.has(item.path));
+    for (const path of result.trashed) state.selectedPaths.delete(path);
+    renderFindings();
+    if (result.failed.length === 0) {
+      showToast(t("toast.trashed", { count: number(result.trashed.length) }));
+    } else {
+      showToast(t("toast.trashedPartial", {
+        moved: number(result.trashed.length),
+        failed: number(result.failed.length),
+        error: result.failed[0].error,
+      }));
+    }
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
 export function initCleaning(): void {
   trashButton.addEventListener("click", () => {
     const size = state.findings.filter((item) => state.selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
@@ -77,6 +110,8 @@ export function initCleaning(): void {
   emptyTrashButton.addEventListener("click", () => {
     openConfirm(t("confirm.emptyTrash"), () => void emptyTrash());
   });
+  cleanBrowserButton.addEventListener("click", () => void cleanCategory("browser"));
+  cleanMessengerButton.addEventListener("click", () => void cleanCategory("chat-media"));
   confirmCancel.addEventListener("click", () => { confirmOverlay.hidden = true; });
   confirmOverlay.addEventListener("click", (event) => {
     if (event.target === confirmOverlay) confirmOverlay.hidden = true;
