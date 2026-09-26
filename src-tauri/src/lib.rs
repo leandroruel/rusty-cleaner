@@ -52,6 +52,88 @@ fn detect_theme() -> &'static str {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrashFailure {
+    path: String,
+    error: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrashResult {
+    trashed: Vec<String>,
+    failed: Vec<TrashFailure>,
+}
+
+#[tauri::command]
+async fn trash_candidates(paths: Vec<String>) -> Result<TrashResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut trashed = Vec::new();
+        let mut failed = Vec::new();
+        for path in paths {
+            let path_buf = PathBuf::from(&path);
+            if !path_buf.exists() {
+                failed.push(TrashFailure {
+                    path,
+                    error: "O arquivo não existe mais".to_owned(),
+                });
+                continue;
+            }
+            match trash::delete(&path_buf) {
+                Ok(()) => trashed.push(path),
+                Err(error) => failed.push(TrashFailure {
+                    path,
+                    error: error.to_string(),
+                }),
+            }
+        }
+        Ok(TrashResult { trashed, failed })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SystemMetrics {
+    cpu_percent: f32,
+    memory_used: u64,
+    memory_total: u64,
+    disk_used: u64,
+    disk_total: u64,
+}
+
+#[tauri::command]
+fn system_metrics() -> SystemMetrics {
+    use sysinfo::{Disks, System};
+
+    let mut system = System::new();
+    system.refresh_cpu_usage();
+    system.refresh_memory();
+
+    let disks = Disks::new_with_refreshed_list();
+    let (disk_used, disk_total) = disks
+        .iter()
+        .find(|disk| disk.mount_point() == std::path::Path::new("/"))
+        .or_else(|| disks.iter().next())
+        .map(|disk| {
+            (
+                disk.total_space() - disk.available_space(),
+                disk.total_space(),
+            )
+        })
+        .unwrap_or((0, 0));
+
+    SystemMetrics {
+        cpu_percent: system.global_cpu_usage(),
+        memory_used: system.used_memory(),
+        memory_total: system.total_memory(),
+        disk_used,
+        disk_total,
+    }
+}
+
 fn omarchy_marker_paths() -> Vec<PathBuf> {
     let mut paths = vec![
         PathBuf::from("/etc/omarchy"),
@@ -105,7 +187,12 @@ fn current_platform() -> &'static str {
 
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![scan_candidates, detect_theme])
+        .invoke_handler(tauri::generate_handler![
+            scan_candidates,
+            detect_theme,
+            trash_candidates,
+            system_metrics
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run Rusty Cleaner desktop application");
 }

@@ -102,11 +102,12 @@
           </div>
         </section>
 
-        <section class="monitor-bar" aria-label="Resumo da varredura">
+        <section class="monitor-bar" aria-label="Resumo da varredura e do sistema">
           <div class="monitor-item"><span class="monitor-label">ITENS ENCONTRADOS</span><strong id="item-count">0</strong></div>
           <div class="monitor-item"><span class="monitor-label">ESPAÇO LISTADO</span><strong id="space-count">0 B</strong></div>
-          <div class="monitor-item"><span class="monitor-label">CATEGORIAS COM ITENS</span><strong id="category-count">0 / 7</strong></div>
-          <div class="monitor-item"><span class="monitor-label">DURAÇÃO</span><strong id="duration-count">—</strong></div>
+          <div class="monitor-item"><span class="monitor-label">CPU</span><strong id="cpu-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-cpu" id="cpu-bar"></span></div></div>
+          <div class="monitor-item"><span class="monitor-label">MEMÓRIA</span><strong id="memory-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-memory" id="memory-bar"></span></div></div>
+          <div class="monitor-item"><span class="monitor-label">DISCO</span><strong id="disk-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-disk" id="disk-bar"></span></div></div>
         </section>
 
         <section class="panel results-panel" id="results-panel" aria-labelledby="results-title" aria-label="Resultados da varredura" hidden>
@@ -134,11 +135,27 @@
           </div>
           <div class="results-table-wrap">
             <table>
-              <thead><tr><th scope="col">ARQUIVO</th><th scope="col">CATEGORIA</th><th scope="col">TAMANHO</th><th scope="col">ALTERADO</th></tr></thead>
-              <tbody id="results-body"><tr><td colspan="4" class="table-empty">Inicie uma varredura para revisar os candidatos. Nenhum arquivo será apagado.</td></tr></tbody>
+              <thead><tr><th scope="col" class="select-col"><input type="checkbox" id="select-all" aria-label="Selecionar todos os itens visíveis" /></th><th scope="col">ARQUIVO</th><th scope="col">CATEGORIA</th><th scope="col">TAMANHO</th><th scope="col">ALTERADO</th></tr></thead>
+              <tbody id="results-body"><tr><td colspan="5" class="table-empty">Inicie uma varredura para revisar os candidatos. Nenhum arquivo será apagado.</td></tr></tbody>
             </table>
           </div>
+          <div class="selection-bar" id="selection-bar" hidden>
+            <span id="selection-summary">0 itens selecionados</span>
+            <button class="button button-danger" id="trash-button" type="button">Mover para a lixeira</button>
+          </div>
         </section>
+
+        <div class="confirm-overlay" id="confirm-overlay" hidden>
+          <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+            <h2 id="confirm-title">Mover para a lixeira?</h2>
+            <p id="confirm-text"></p>
+            <p class="confirm-note">Os arquivos serão enviados para a lixeira do sistema e poderão ser restaurados por lá.</p>
+            <div class="confirm-actions">
+              <button class="button button-quiet" id="confirm-cancel" type="button">Cancelar</button>
+              <button class="button button-danger" id="confirm-accept" type="button">Mover para a lixeira</button>
+            </div>
+          </div>
+        </div>
       </main>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>

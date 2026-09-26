@@ -32,7 +32,7 @@ The current CLI and desktop prototype can scan for these candidates:
 | `duplicates` | Finds files of at least 1 MiB, groups by size and hash, then verifies matching content byte by byte. |
 | `large-old` | Lists files of at least 100 MiB in the home directory that have not changed in at least 180 days. |
 
-Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. The desktop interface is an early, read-only prototype; there is no deletion command yet.
+Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. The desktop interface is an early prototype: it scans, lets you review and select findings, and can move selected files to the system trash after an explicit confirmation. It never deletes files permanently.
 
 ## Requirements
 
@@ -63,7 +63,7 @@ cargo test
 
 ## Safety
 
-- The current version only reports candidates; it does not remove or modify files.
+- Cleaning only moves the files you explicitly select to the system trash, after a confirmation dialog. Nothing is deleted permanently, and items can be restored from the trash.
 - Review every result before deciding whether it is safe to remove. Age, size, and location do not prove that a file is unnecessary.
 - Leftover application data detection is heuristic and may include data still used by installed software.
 

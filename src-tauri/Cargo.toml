@@ -10,4 +10,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 rusty-cleaner = { path = ".." }
 serde = { version = "1", features = ["derive"] }
+sysinfo = { version = "0.33", default-features = false, features = ["system", "disk"] }
 tauri = { version = "2", features = [] }
+trash = "5"

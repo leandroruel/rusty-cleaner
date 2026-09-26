@@ -28,6 +28,19 @@ type ScanResult = {
   platform: string;
 };
 
+type TrashResult = {
+  trashed: string[];
+  failed: { path: string; error: string }[];
+};
+
+type SystemMetrics = {
+  cpuPercent: number;
+  memoryUsed: number;
+  memoryTotal: number;
+  diskUsed: number;
+  diskTotal: number;
+};
+
 const featureLabels: Record<FeatureKey, string> = {
   orphan: "Dados antigos de apps",
   temp: "Temporários",
@@ -51,6 +64,7 @@ const featureColors: Record<FeatureKey, string> = {
 let findings: Finding[] = [];
 let activeFilter = "all";
 let toastTimer = 0;
+const selectedPaths = new Set<string>();
 
 const scanButton = getElement<HTMLButtonElement>("scan-button");
 const resultsButton = getElement<HTMLButtonElement>("results-button");
@@ -59,6 +73,14 @@ const resultsPanel = getElement<HTMLElement>("results-panel");
 const closeResultsButton = getElement<HTMLButtonElement>("close-results");
 const statusLabel = getElement<HTMLSpanElement>("status-label");
 const toast = getElement<HTMLDivElement>("toast");
+const selectAll = getElement<HTMLInputElement>("select-all");
+const selectionBar = getElement<HTMLElement>("selection-bar");
+const selectionSummary = getElement<HTMLSpanElement>("selection-summary");
+const trashButton = getElement<HTMLButtonElement>("trash-button");
+const confirmOverlay = getElement<HTMLElement>("confirm-overlay");
+const confirmText = getElement<HTMLParagraphElement>("confirm-text");
+const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
+const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 
 function setTheme(theme: "rusty" | "omarchy"): void {
   document.documentElement.dataset.theme = theme;
@@ -78,12 +100,39 @@ async function applySystemTheme(): Promise<void> {
 }
 
 void applySystemTheme();
+void refreshMetrics();
+window.setInterval(() => void refreshMetrics(), 3000);
 
 scanButton.addEventListener("click", () => void runScan());
+selectAll.addEventListener("change", () => {
+  const visible = visibleFindings();
+  if (selectAll.checked) {
+    visible.forEach((item) => selectedPaths.add(item.path));
+  } else {
+    visible.forEach((item) => selectedPaths.delete(item.path));
+  }
+  renderFindings();
+});
+trashButton.addEventListener("click", () => {
+  const size = findings.filter((item) => selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
+  confirmText.textContent = `${selectedPaths.size.toLocaleString("pt-BR")} itens · ${formatBytes(size)} serão movidos para a lixeira.`;
+  confirmOverlay.hidden = false;
+  confirmCancel.focus();
+});
+confirmCancel.addEventListener("click", () => { confirmOverlay.hidden = true; });
+confirmOverlay.addEventListener("click", (event) => {
+  if (event.target === confirmOverlay) confirmOverlay.hidden = true;
+});
+confirmAccept.addEventListener("click", () => void trashSelected());
 resultsButton.addEventListener("click", () => openResults());
 closeResultsButton.addEventListener("click", closeResults);
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !resultsPanel.hidden) closeResults();
+  if (event.key !== "Escape") return;
+  if (!confirmOverlay.hidden) {
+    confirmOverlay.hidden = true;
+  } else if (!resultsPanel.hidden) {
+    closeResults();
+  }
 });
 filterSelect.addEventListener("change", () => {
   activeFilter = filterSelect.value;
@@ -231,60 +280,132 @@ function renderSummary(result: ScanResult): void {
   getElement("discord-count").textContent = `${messengerCounts.discord.toLocaleString("pt-BR")} itens`;
 }
 
+function visibleFindings(): Finding[] {
+  return activeFilter === "all" ? findings : findings.filter((item) => item.feature === activeFilter);
+}
+
 function renderFindings(): void {
-  const visible = activeFilter === "all" ? findings : findings.filter((item) => item.feature === activeFilter);
+  const visible = visibleFindings();
   const body = getElement("results-body");
   body.replaceChildren();
   if (visible.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 4;
+    cell.colSpan = 5;
     cell.className = "table-empty";
     cell.textContent = findings.length === 0
       ? "Inicie uma varredura para revisar os candidatos. Nenhum arquivo será apagado."
       : "Nenhum item encontrado nesta categoria.";
     row.append(cell);
     body.append(row);
-    return;
+  } else {
+    for (const item of visible.slice(0, 500)) {
+      const row = document.createElement("tr");
+
+      const selectCell = document.createElement("td");
+      selectCell.className = "select-col";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedPaths.has(item.path);
+      checkbox.setAttribute("aria-label", `Selecionar ${item.name}`);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selectedPaths.add(item.path);
+        } else {
+          selectedPaths.delete(item.path);
+        }
+        updateSelectionBar();
+      });
+      selectCell.append(checkbox);
+
+      const fileCell = document.createElement("td");
+      const fileName = document.createElement("span");
+      fileName.className = "file-name";
+      fileName.textContent = item.name;
+      fileName.title = item.path;
+      const filePath = document.createElement("span");
+      filePath.className = "file-path";
+      filePath.textContent = item.path;
+      fileCell.append(fileName, filePath);
+
+      const featureCell = document.createElement("td");
+      const tag = document.createElement("span");
+      tag.className = "feature-tag";
+      tag.style.setProperty("--tag-color", featureColors[item.feature]);
+      tag.textContent = featureLabels[item.feature];
+      featureCell.append(tag);
+
+      const sizeCell = document.createElement("td");
+      sizeCell.className = "numeric-cell";
+      sizeCell.textContent = formatBytes(item.size);
+
+      const ageCell = document.createElement("td");
+      ageCell.className = "numeric-cell muted-cell";
+      ageCell.textContent = item.ageDays === null ? "—" : `${item.ageDays.toLocaleString("pt-BR")} dias`;
+      row.append(selectCell, fileCell, featureCell, sizeCell, ageCell);
+      body.append(row);
+    }
+
+    if (visible.length > 500) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.className = "table-empty";
+      cell.textContent = `Exibindo 500 de ${visible.length.toLocaleString("pt-BR")} itens.`;
+      row.append(cell);
+      body.append(row);
+    }
   }
 
-  for (const item of visible.slice(0, 500)) {
-    const row = document.createElement("tr");
-    const fileCell = document.createElement("td");
-    const fileName = document.createElement("span");
-    fileName.className = "file-name";
-    fileName.textContent = item.name;
-    fileName.title = item.path;
-    const filePath = document.createElement("span");
-    filePath.className = "file-path";
-    filePath.textContent = item.path;
-    fileCell.append(fileName, filePath);
+  const visiblePaths = new Set(visible.map((item) => item.path));
+  const selectedVisible = [...selectedPaths].filter((path) => visiblePaths.has(path));
+  selectAll.checked = visible.length > 0 && selectedVisible.length === visible.length;
+  selectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length;
+  updateSelectionBar();
+}
 
-    const featureCell = document.createElement("td");
-    const tag = document.createElement("span");
-    tag.className = "feature-tag";
-    tag.style.setProperty("--tag-color", featureColors[item.feature]);
-    tag.textContent = featureLabels[item.feature];
-    featureCell.append(tag);
+function updateSelectionBar(): void {
+  const count = selectedPaths.size;
+  selectionBar.hidden = count === 0;
+  const size = findings.filter((item) => selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
+  selectionSummary.textContent = `${count.toLocaleString("pt-BR")} ${count === 1 ? "item selecionado" : "itens selecionados"} · ${formatBytes(size)}`;
+}
 
-    const sizeCell = document.createElement("td");
-    sizeCell.className = "numeric-cell";
-    sizeCell.textContent = formatBytes(item.size);
-
-    const ageCell = document.createElement("td");
-    ageCell.className = "numeric-cell muted-cell";
-    ageCell.textContent = item.ageDays === null ? "—" : `${item.ageDays.toLocaleString("pt-BR")} dias`;
-    row.append(fileCell, featureCell, sizeCell, ageCell);
-    body.append(row);
+async function trashSelected(): Promise<void> {
+  confirmOverlay.hidden = true;
+  const paths = [...selectedPaths];
+  trashButton.disabled = true;
+  trashButton.textContent = "Movendo...";
+  try {
+    const result = await invoke<TrashResult>("trash_candidates", { paths });
+    const trashedSet = new Set(result.trashed);
+    findings = findings.filter((item) => !trashedSet.has(item.path));
+    for (const path of result.trashed) selectedPaths.delete(path);
+    renderFindings();
+    if (result.failed.length === 0) {
+      showToast(`${result.trashed.length.toLocaleString("pt-BR")} itens movidos para a lixeira.`);
+    } else {
+      showToast(`${result.trashed.length.toLocaleString("pt-BR")} movidos; ${result.failed.length.toLocaleString("pt-BR")} falharam (ex.: ${result.failed[0].error}).`);
+    }
+  } catch (error) {
+    showToast(String(error));
+  } finally {
+    trashButton.disabled = false;
+    trashButton.textContent = "Mover para a lixeira";
   }
+}
 
-  if (visible.length > 500) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 4;
-    cell.className = "table-empty";
-    cell.textContent = `Exibindo 500 de ${visible.length.toLocaleString("pt-BR")} itens.`;
-    row.append(cell);
-    body.append(row);
+async function refreshMetrics(): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    const metrics = await invoke<SystemMetrics>("system_metrics");
+    getElement("cpu-count").textContent = `${Math.round(metrics.cpuPercent)}%`;
+    getElement("cpu-bar").style.width = `${Math.min(metrics.cpuPercent, 100)}%`;
+    getElement("memory-count").textContent = `${formatBytes(metrics.memoryUsed)} / ${formatBytes(metrics.memoryTotal)}`;
+    getElement("memory-bar").style.width = metrics.memoryTotal > 0 ? `${(metrics.memoryUsed / metrics.memoryTotal) * 100}%` : "0%";
+    getElement("disk-count").textContent = `${formatBytes(metrics.diskUsed)} / ${formatBytes(metrics.diskTotal)}`;
+    getElement("disk-bar").style.width = metrics.diskTotal > 0 ? `${(metrics.diskUsed / metrics.diskTotal) * 100}%` : "0%";
+  } catch {
+    // Mantém os últimos valores se a leitura falhar.
   }
 }
