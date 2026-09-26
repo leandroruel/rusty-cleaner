@@ -11,6 +11,17 @@ const searchInput = getElement<HTMLInputElement>("search-input");
 const sortSelect = getElement<HTMLSelectElement>("sort-select");
 const selectCategoryButton = getElement<HTMLButtonElement>("select-category-button");
 
+function groupDuplicates(items: Finding[]): Finding[][] {
+  const byContent = new Map<string, Finding[]>();
+  for (const item of items) {
+    const key = `${item.name}:${item.size}`;
+    const group = byContent.get(key) ?? [];
+    group.push(item);
+    byContent.set(key, group);
+  }
+  return [...byContent.values()].sort((a, b) => b.length - a.length || b[0].size - a[0].size);
+}
+
 export function visibleFindings(): Finding[] {
   let visible = state.activeFilter === "all" ? [...state.findings] : state.findings.filter((item) => item.feature === state.activeFilter);
   if (state.searchQuery) {
@@ -42,51 +53,69 @@ export function renderFindings(): void {
     row.append(cell);
     body.append(row);
   } else {
-    for (const item of visible.slice(0, 500)) {
-      const row = document.createElement("tr");
+    const rows = state.activeFilter === "duplicates" ? groupDuplicates(visible) : visible.map((item) => [item]);
+    let rendered = 0;
+    for (const group of rows) {
+      if (rendered >= 500) break;
+      if (group.length > 1) {
+        const header = document.createElement("tr");
+        header.className = "duplicate-group";
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        const totalSize = group.reduce((total, item) => total + item.size, 0);
+        cell.textContent = t("results.duplicateGroup", { count: formatCount(group.length), size: formatBytes(totalSize) });
+        header.append(cell);
+        body.append(header);
+      }
+      for (const item of group) {
+        if (rendered >= 500) break;
+        rendered += 1;
+        const row = document.createElement("tr");
+        if (group.length > 1) row.className = "duplicate-member";
 
-      const selectCell = document.createElement("td");
-      selectCell.className = "select-col";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = state.selectedPaths.has(item.path);
-      checkbox.setAttribute("aria-label", t("results.selectItem", { name: item.name }));
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) {
-          state.selectedPaths.add(item.path);
-        } else {
-          state.selectedPaths.delete(item.path);
-        }
-        updateSelectionBar();
-      });
-      selectCell.append(checkbox);
+        const selectCell = document.createElement("td");
+        selectCell.className = "select-col";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = state.selectedPaths.has(item.path);
+        checkbox.setAttribute("aria-label", t("results.selectItem", { name: item.name }));
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            state.selectedPaths.add(item.path);
+          } else {
+            state.selectedPaths.delete(item.path);
+          }
+          updateSelectionBar();
+        });
+        selectCell.append(checkbox);
 
-      const fileCell = document.createElement("td");
-      const fileName = document.createElement("span");
-      fileName.className = "file-name";
-      fileName.textContent = item.name;
-      fileName.title = item.path;
-      const filePath = document.createElement("span");
-      filePath.className = "file-path";
-      filePath.textContent = item.path;
-      fileCell.append(fileName, filePath);
+        const fileCell = document.createElement("td");
+        const fileName = document.createElement("span");
+        fileName.className = "file-name";
+        fileName.textContent = item.name;
+        fileName.title = item.path;
+        const filePath = document.createElement("span");
+        filePath.className = "file-path";
+        filePath.textContent = item.path;
+        fileCell.append(fileName, filePath);
 
-      const featureCell = document.createElement("td");
-      const tag = document.createElement("span");
-      tag.className = "feature-tag";
-      tag.style.setProperty("--tag-color", featureColors[item.feature]);
-      tag.textContent = featureLabels()[item.feature];
-      featureCell.append(tag);
+        const featureCell = document.createElement("td");
+        const tag = document.createElement("span");
+        tag.className = "feature-tag";
+        tag.style.setProperty("--tag-color", featureColors[item.feature]);
+        tag.textContent = featureLabels()[item.feature];
+        featureCell.append(tag);
 
-      const sizeCell = document.createElement("td");
-      sizeCell.className = "numeric-cell";
-      sizeCell.textContent = formatBytes(item.size);
+        const sizeCell = document.createElement("td");
+        sizeCell.className = "numeric-cell";
+        sizeCell.textContent = formatBytes(item.size);
 
-      const ageCell = document.createElement("td");
-      ageCell.className = "numeric-cell muted-cell";
-      ageCell.textContent = item.ageDays === null ? "—" : t("table.days", { count: formatCount(item.ageDays) });
-      row.append(selectCell, fileCell, featureCell, sizeCell, ageCell);
-      body.append(row);
+        const ageCell = document.createElement("td");
+        ageCell.className = "numeric-cell muted-cell";
+        ageCell.textContent = item.ageDays === null ? "—" : t("table.days", { count: formatCount(item.ageDays) });
+        row.append(selectCell, fileCell, featureCell, sizeCell, ageCell);
+        body.append(row);
+      }
     }
   }
 

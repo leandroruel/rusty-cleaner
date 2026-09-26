@@ -161,6 +161,8 @@ tbody tr:hover { background:rgba(255,255,255,.018); }
 .numeric-cell { font:10px var(--font-mono); white-space:nowrap; }
 .muted-cell { color:var(--text-faint); }
 .table-empty { padding:23px 14px; color:var(--text-faint); text-align:center; }
+.duplicate-group td { padding:8px 13px 4px; background:rgba(51,255,176,.05); color:var(--green); font:700 10px var(--font-mono); border-bottom:0; }
+.duplicate-member td:first-child { padding-left:22px; }
 .select-col { width:34px; text-align:center; }
 .select-col input { width:14px; height:14px; margin:0; accent-color:var(--cyan); cursor:pointer; }
 .results-footer { flex:none; padding:8px 16px; border-top:1px solid var(--border); background:var(--panel-2); color:var(--amber); font:10px var(--font-mono); }
