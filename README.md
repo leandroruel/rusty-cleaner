@@ -8,6 +8,8 @@ Rusty Cleaner is an open-source file-cleaning application written in Rust, with 
 
 **[Download the latest release](https://github.com/leandroruel/rusty-cleaner/releases/latest)** — installers for Linux (.deb, .rpm, .AppImage), macOS (.dmg) and Windows (.exe, .msi).
 
+> **Windows note**: the installer is not yet signed with a commercial certificate, so SmartScreen may show a warning. Click "More info" → "Run anyway". The release pipeline supports SignPath signing — once a free open-source certificate is configured, future releases will be signed automatically.
+
 ## Project vision
 
 Rusty Cleaner aims to help users find and safely review:
