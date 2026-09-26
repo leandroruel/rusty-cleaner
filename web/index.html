@@ -13,9 +13,14 @@
           <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="app-name"><strong>Rusty</strong> Cleaner</span>
         </div>
-        <div class="system-status" id="system-status" role="status">
-          <span class="status-dot"></span>
-          <span id="status-label">Pronto para analisar</span>
+        <div class="title-actions">
+          <div class="system-status" id="system-status" role="status">
+            <span class="status-dot"></span>
+            <span id="status-label">Pronto para analisar</span>
+          </div>
+          <button class="icon-button" id="settings-button" type="button" aria-label="Abrir configurações" title="Configurações">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.23.6.86 1 1.55 1H21a2 2 0 1 1 0 4h-.09c-.69 0-1.32.4-1.51 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </button>
         </div>
       </header>
 
@@ -188,6 +193,35 @@
           </div>
         </div>
       </main>
+      <div class="settings-overlay" id="settings-overlay" hidden>
+        <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <div class="settings-head">
+            <h2 id="settings-title">Configurações</h2>
+            <button class="icon-button" id="settings-close" type="button" aria-label="Fechar configurações">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+
+          <section class="settings-section">
+            <h3>Log de atividades</h3>
+            <p class="settings-hint">Varreduras, limpezas e falhas são registradas neste arquivo.</p>
+            <div class="settings-row">
+              <code class="settings-path" id="log-path">—</code>
+              <button class="button button-quiet" id="open-log-button" type="button">Abrir pasta</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3>Pastas excluídas da varredura</h3>
+            <p class="settings-hint">Pastas nesta lista nunca são escaneadas. Pastas do sistema não podem ser adicionadas.</p>
+            <div class="settings-row">
+              <input type="text" id="exclude-input" placeholder="/home/voce/pasta" aria-label="Pasta a excluir" />
+              <button class="button button-quiet" id="exclude-add" type="button">Adicionar</button>
+            </div>
+            <ul class="exclude-list" id="exclude-list"></ul>
+          </section>
+        </div>
+      </div>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

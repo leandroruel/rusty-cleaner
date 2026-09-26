@@ -8,6 +8,7 @@ rust-version = "1.70"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+open = "5"
 rusty-cleaner = { path = ".." }
 serde = { version = "1", features = ["derive"] }
 sysinfo = { version = "0.33", default-features = false, features = ["system", "disk"] }

@@ -202,6 +202,45 @@ fn system_metrics() -> SystemMetrics {
     }
 }
 
+#[tauri::command]
+fn log_file_path() -> Option<String> {
+    rusty_cleaner::activity_log::log_path().map(|path| path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn open_log_folder() -> Result<(), String> {
+    let path = rusty_cleaner::activity_log::log_path().ok_or("Pasta de log indisponível")?;
+    let folder = path.parent().ok_or("Pasta de log indisponível")?;
+    std::fs::create_dir_all(folder).map_err(|error| error.to_string())?;
+    open::that(folder).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn list_excluded_dirs() -> Vec<String> {
+    rusty_cleaner::settings::load_excluded_dirs()
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
+}
+
+#[tauri::command]
+fn add_excluded_dir(path: String) -> Result<Vec<String>, String> {
+    let path_buf = PathBuf::from(&path);
+    if !path_buf.is_dir() {
+        return Err("O caminho não é uma pasta existente".to_owned());
+    }
+    if !rusty_cleaner::settings::add_excluded_dir(&path_buf) {
+        return Err("Pasta do sistema ou já excluída".to_owned());
+    }
+    Ok(list_excluded_dirs())
+}
+
+#[tauri::command]
+fn remove_excluded_dir(path: String) -> Vec<String> {
+    rusty_cleaner::settings::remove_excluded_dir(&PathBuf::from(path));
+    list_excluded_dirs()
+}
+
 fn omarchy_marker_paths() -> Vec<PathBuf> {
     let mut paths = vec![
         PathBuf::from("/etc/omarchy"),
@@ -260,7 +299,12 @@ pub fn run() {
             detect_theme,
             trash_candidates,
             empty_trash,
-            system_metrics
+            system_metrics,
+            log_file_path,
+            open_log_folder,
+            list_excluded_dirs,
+            add_excluded_dir,
+            remove_excluded_dir
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Rusty Cleaner desktop application");

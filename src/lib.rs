@@ -6,6 +6,7 @@ pub mod large_old;
 pub mod orphan;
 pub mod platform;
 pub mod scanner;
+pub mod settings;
 pub mod temp;
 pub mod trash;
 

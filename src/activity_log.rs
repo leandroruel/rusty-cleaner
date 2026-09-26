@@ -11,7 +11,7 @@ pub fn log_path() -> Option<PathBuf> {
     Some(base.join("rusty-cleaner").join("activity.log"))
 }
 
-fn data_dir() -> Option<PathBuf> {
+pub fn data_dir() -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
         std::env::var_os("XDG_DATA_HOME")

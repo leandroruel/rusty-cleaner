@@ -87,9 +87,16 @@ pub fn walk_files(
     max_depth: usize,
     mut accept: impl FnMut(&Path, &Metadata) -> bool,
 ) -> Vec<PathBuf> {
+    let user_excluded = crate::settings::load_excluded_dirs();
     let mut found = Vec::new();
     for root in roots {
-        walk_one(root, 0, max_depth, &mut accept, &mut found);
+        if user_excluded
+            .iter()
+            .any(|excluded| root.starts_with(excluded))
+        {
+            continue;
+        }
+        walk_one(root, 0, max_depth, &user_excluded, &mut accept, &mut found);
     }
     found
 }
@@ -98,6 +105,7 @@ fn walk_one(
     path: &Path,
     depth: usize,
     max_depth: usize,
+    user_excluded: &[PathBuf],
     accept: &mut impl FnMut(&Path, &Metadata) -> bool,
     found: &mut Vec<PathBuf>,
 ) {
@@ -119,12 +127,25 @@ fn walk_one(
     if depth > 0 && is_excluded_dir(path) {
         return;
     }
+    if user_excluded
+        .iter()
+        .any(|excluded| path.starts_with(excluded))
+    {
+        return;
+    }
     report_progress(path);
     let Ok(entries) = fs::read_dir(path) else {
         return;
     };
     for entry in entries.flatten() {
-        walk_one(&entry.path(), depth + 1, max_depth, accept, found);
+        walk_one(
+            &entry.path(),
+            depth + 1,
+            max_depth,
+            user_excluded,
+            accept,
+            found,
+        );
     }
 }
 
