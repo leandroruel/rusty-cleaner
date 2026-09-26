@@ -1,8 +1,26 @@
 # Rusty Cleaner
 
-Rusty Cleaner is an open-source file-cleaning application written in Rust. The goal is to grow it into a complete, cross-platform cleaner for Linux, macOS, and Windows, with a broad set of tools to help people understand and manage files taking up disk space.
+<p align="center">
+  <img src="assets/app-icon.png" alt="Rusty Cleaner" width="128" height="128" />
+</p>
 
-The project is under active development. The current version is an experimental command-line prototype. Scans are read-only: **no files are deleted**.
+Rusty Cleaner is an open-source file-cleaning application written in Rust, with a desktop interface for Linux, macOS, and Windows. It helps you find and safely review files taking up disk space — and move them to the system trash after your confirmation.
+
+**[Download the latest release](https://github.com/leandroruel/rusty-cleaner/releases/latest)** — installers for Linux (.deb, .rpm, .AppImage), macOS (.dmg) and Windows (.exe, .msi).
+
+## Project vision
+
+Rusty Cleaner aims to help users find and safely review:
+
+- Leftover data from uninstalled applications
+- Temporary files and application caches
+- Media and downloads from messaging apps such as WhatsApp, Telegram, and Discord
+- Files in the system trash or recycle bin
+- Browser caches and other browser data
+- Exact duplicate files
+- Large files that have not been modified for a long time
+
+The desktop app provides a dashboard with live scan progress, per-category review, and safeguards against deleting important data.
 
 ## Project vision
 
@@ -18,21 +36,21 @@ Rusty Cleaner aims to help users find and safely review:
 
 The long-term product is intended to provide a desktop interface, clear explanations for every finding, user-controlled selection, and safeguards against deleting important data. These are project goals, not claims about the current prototype.
 
-## Current status
+## Features
 
-The current CLI and desktop prototype can scan for these candidates:
+The desktop app scans for these candidates and lets you review, select, and move them to the system trash:
 
-| Feature | Current behavior |
+| Feature | What it finds |
 | --- | --- |
-| `orphan` | Lists old files in selected application-data directories. Age is only a heuristic; it cannot confirm that an application was uninstalled. |
-| `temp` | Lists files in the operating system's temporary directory that have not changed in at least 7 days. |
-| `chat-media` | Looks for media in recognized Telegram and Discord directories. WhatsApp does not yet have a dedicated location scanner. |
-| `trash` | Lists files in known trash locations. |
-| `browser` | Looks for files under recognized browser cache paths. |
-| `duplicates` | Finds files of at least 1 MiB, groups by size and hash, then verifies matching content byte by byte. |
-| `large-old` | Lists files of at least 100 MiB in the home directory that have not changed in at least 180 days. |
+| `orphan` | Application data left behind by uninstalled programs, cross-referenced with installed package databases (pacman/dpkg/flatpak on Linux, Homebrew on macOS). |
+| `temp` | Files in the operating system's temporary directory unchanged for at least 7 days. |
+| `chat-media` | Media in recognized Telegram, Discord, and WhatsApp directories, with totals by type (video, image, audio, other). |
+| `trash` | Files in known trash locations, with restore and empty actions. |
+| `browser` | Files under recognized browser cache paths, broken down by browser (Chrome, Firefox, Edge, Brave, Safari, Chromium). |
+| `duplicates` | Files of at least 1 MiB, grouped by size and hash, then verified byte by byte and grouped in the results table. |
+| `large-old` | Files of at least 100 MiB in the home directory unchanged for at least 180 days. |
 
-Platform paths and scanners are early implementations and have not yet been validated across all supported operating systems. The desktop interface is an early prototype: it scans, lets you review and select findings, and can move selected files to the system trash after an explicit confirmation. It never deletes files permanently.
+The interface shows live scan progress (current folder, elapsed time), a real-time system monitor (CPU, memory, disk), and supports English and Portuguese. Scans skip package-manager and toolchain directories. Cleaning always requires explicit confirmation and only moves files to the system trash — nothing is deleted permanently.
 
 ## Requirements
 
