@@ -127,6 +127,19 @@ fn is_excluded_dir(path: &Path) -> bool {
             | ".vscode"
             | ".idea"
             | "Library"
+            | "flatpak"
+            | "snap"
+            | ".cache"
+            | "pip"
+            | ".pip"
+            | "site-packages"
+            | "vendor"
+            | "Pods"
+            | ".pub-cache"
+            | ".composer"
+            | "node-gyp"
+            | ".bun"
+            | "deno"
     )
 }
 
@@ -155,4 +168,33 @@ pub fn age_days(metadata: &Metadata) -> Option<u64> {
 
 pub fn unix_epoch() -> SystemTime {
     UNIX_EPOCH
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_excluded_dir;
+    use std::path::Path;
+
+    #[test]
+    fn excludes_package_manager_and_toolchain_directories() {
+        for name in [
+            "node_modules",
+            "target",
+            ".cargo",
+            ".rustup",
+            ".npm",
+            ".pnpm-store",
+            "flatpak",
+            "snap",
+            "site-packages",
+            "vendor",
+        ] {
+            assert!(
+                is_excluded_dir(Path::new("/home/user").join(name).as_path()),
+                "{name}"
+            );
+        }
+        assert!(!is_excluded_dir(Path::new("/home/user/Downloads")));
+        assert!(!is_excluded_dir(Path::new("/home/user/Documents")));
+    }
 }
