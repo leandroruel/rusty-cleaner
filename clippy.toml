@@ -1,0 +1,3 @@
+# Clippy configuration for Rusty Cleaner.
+# Warnings are denied in CI; keep this file for tuning thresholds.
+cognitive-complexity-threshold = 30

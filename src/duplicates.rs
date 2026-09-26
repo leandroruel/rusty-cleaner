@@ -87,7 +87,7 @@ fn same_contents(left_path: &Path, right_path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::same_contents;
-    use std::{fs, path::PathBuf, time::SystemTime};
+    use std::{fs, time::SystemTime};
 
     #[test]
     fn confirms_bytes_after_hash_candidates_match() {
@@ -107,7 +107,7 @@ mod tests {
         fs::write(&identical, b"same bytes").unwrap();
         fs::write(&different, b"other bytes").unwrap();
 
-        assert!(same_contents(&PathBuf::from(first), &identical));
+        assert!(same_contents(&first, &identical));
         assert!(!same_contents(&identical, &different));
 
         fs::remove_dir_all(test_dir).unwrap();

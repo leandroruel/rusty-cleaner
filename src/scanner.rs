@@ -43,6 +43,15 @@ impl std::fmt::Display for Feature {
     }
 }
 
+/// Strategy pattern: every cleaning feature implements this trait and is
+/// registered once in `scanners()`. Adding a feature means implementing
+/// `Scanner` in a new module and pushing it into the registry — no `match`
+/// statements to keep in sync.
+pub trait Scanner: Sync {
+    fn feature(&self) -> Feature;
+    fn scan(&self) -> Vec<Finding>;
+}
+
 #[derive(Debug, Clone)]
 pub struct Finding {
     pub feature: Feature,

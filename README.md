@@ -70,3 +70,5 @@ cargo test
 ## Contributing
 
 Rusty Cleaner is an open-source project, and contributions are welcome. Bug reports, platform-specific testing, documentation improvements, and feature proposals can be submitted through GitHub issues and pull requests.
+
+Code style is enforced in CI: `rustfmt` for formatting and Clippy with warnings denied for linting. Scanners follow the Strategy pattern — see [CONTRIBUTING.md](CONTRIBUTING.md) for the conventions.
