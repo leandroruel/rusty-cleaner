@@ -511,6 +511,40 @@ function renderSummary(result: ScanResult): void {
   getElement("telegram-count").textContent = t("card.items", { count: number(messengerCounts.telegram) });
   getElement("discord-count").textContent = t("card.items", { count: number(messengerCounts.discord) });
   getElement("whatsapp-count").textContent = t("card.items", { count: number(messengerCounts.whatsapp) });
+  renderMediaTypes();
+}
+
+type MediaKind = "video" | "image" | "audio" | "other";
+
+function mediaKind(path: string): MediaKind {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp4", "mov", "mkv", "webm", "avi"].includes(ext)) return "video";
+  if (["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(ext)) return "image";
+  if (["opus", "ogg", "mp3", "m4a", "wav", "aac"].includes(ext)) return "audio";
+  return "other";
+}
+
+function renderMediaTypes(): void {
+  const container = getElement("media-types");
+  container.replaceChildren();
+  const totals = new Map<MediaKind, { count: number; size: number }>();
+  for (const item of findings.filter((entry) => entry.feature === "chat-media")) {
+    const kind = mediaKind(item.path);
+    const current = totals.get(kind) ?? { count: 0, size: 0 };
+    current.count += 1;
+    current.size += item.size;
+    totals.set(kind, current);
+  }
+  if (totals.size === 0) return;
+  const order: MediaKind[] = ["video", "image", "audio", "other"];
+  for (const kind of order) {
+    const data = totals.get(kind);
+    if (!data) continue;
+    const chip = document.createElement("span");
+    chip.className = `media-chip media-${kind}`;
+    chip.textContent = `${t(`media.${kind}`)} · ${formatBytes(data.size)}`;
+    container.append(chip);
+  }
 }
 
 function visibleFindings(): Finding[] {
