@@ -148,6 +148,14 @@
           </div>
         </section>
 
+        <section class="monitor-bar" aria-label="Scan and system summary">
+          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.items">ITEMS FOUND</span><strong id="item-count">0</strong></div>
+          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.space">SPACE LISTED</span><strong id="space-count">0 B</strong></div>
+          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.cpu">CPU</span><strong id="cpu-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-cpu" id="cpu-bar"></span></div></div>
+          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.memory">MEMORY</span><strong id="memory-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-memory" id="memory-bar"></span></div></div>
+          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.disk">DISK</span><strong id="disk-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-disk" id="disk-bar"></span></div></div>
+        </section>
+
         <section class="failed-scans" id="failed-scans" hidden>
           <button class="failed-toggle" id="failed-toggle" type="button" aria-expanded="false">
             <span class="failed-icon" aria-hidden="true">⚠</span>
@@ -160,14 +168,6 @@
               <tbody id="failed-body"></tbody>
             </table>
           </div>
-        </section>
-
-        <section class="monitor-bar" aria-label="Scan and system summary">
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.items">ITEMS FOUND</span><strong id="item-count">0</strong></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.space">SPACE LISTED</span><strong id="space-count">0 B</strong></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.cpu">CPU</span><strong id="cpu-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-cpu" id="cpu-bar"></span></div></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.memory">MEMORY</span><strong id="memory-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-memory" id="memory-bar"></span></div></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.disk">DISK</span><strong id="disk-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-disk" id="disk-bar"></span></div></div>
         </section>
 
         <section class="panel results-panel" id="results-panel" aria-labelledby="results-title" aria-label="Scan results" hidden>
