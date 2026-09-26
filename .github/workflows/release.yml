@@ -66,5 +66,11 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: "**/*"
+          files: |
+            **/*.deb
+            **/*.AppImage
+            **/*.rpm
+            **/*.dmg
+            **/*.msi
+            **/*.exe
           generate_release_notes: true
