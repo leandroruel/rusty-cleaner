@@ -169,6 +169,7 @@ struct TrashItemView {
     original_path: String,
 }
 
+#[cfg(not(target_os = "macos"))]
 #[tauri::command]
 async fn list_trash_items() -> Result<Vec<TrashItemView>, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -185,6 +186,13 @@ async fn list_trash_items() -> Result<Vec<TrashItemView>, String> {
     .map_err(|error| error.to_string())?
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn list_trash_items() -> Result<Vec<TrashItemView>, String> {
+    Err("Restoring from trash is not supported on macOS yet".to_owned())
+}
+
+#[cfg(not(target_os = "macos"))]
 #[tauri::command]
 async fn restore_trash_items(names: Vec<String>) -> Result<u64, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -200,6 +208,12 @@ async fn restore_trash_items(names: Vec<String>) -> Result<u64, String> {
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn restore_trash_items(_names: Vec<String>) -> Result<u64, String> {
+    Err("Restoring from trash is not supported on macOS yet".to_owned())
 }
 
 #[derive(Serialize)]
