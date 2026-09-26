@@ -14,9 +14,9 @@
       {
         "title": "Rusty Cleaner",
         "width": 1100,
-        "height": 700,
+        "height": 780,
         "minWidth": 760,
-        "minHeight": 580,
+        "minHeight": 660,
         "center": true,
         "resizable": true
       }

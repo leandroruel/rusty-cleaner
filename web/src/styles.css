@@ -94,7 +94,7 @@ h2 { margin:0; font-size:13px; font-weight:700; }
 .button-quiet:hover:not(:disabled) { border-color:var(--cyan); }
 .button-primary { flex:1; border-color:var(--cyan); background:var(--cyan); color:#05070a; }
 .button-primary:hover:not(:disabled) { background:#74eaff; }
-.summary-column { display:flex; min-height:0; flex-direction:column; gap:10px; }
+.summary-column { display:flex; min-height:0; flex-direction:column; gap:10px; overflow-y:auto; scrollbar-width:thin; }
 .summary-panel { padding:15px 16px; }
 .panel-subtitle { margin:3px 0 0; color:var(--text-faint); font-size:10px; }
 .summary-size { color:var(--text-dim); font:12px var(--font-mono); white-space:nowrap; }
@@ -115,7 +115,7 @@ h2 { margin:0; font-size:13px; font-weight:700; }
 .browser-chip svg { width:13px; height:13px; flex:none; }
 .button-outline-danger { min-height:30px; padding:5px 9px; border-color:rgba(255,77,106,.3); background:transparent; color:var(--red); font-size:10px; }
 .button-outline-danger:hover:not(:disabled) { background:rgba(255,77,106,.08); }
-.messenger-panel { flex:1; padding:15px 16px 10px; }
+.messenger-panel { flex:1 0 auto; padding:15px 16px 10px; }
 .messenger-list { margin-top:9px; }
 .messenger-row { display:flex; align-items:center; width:100%; min-height:42px; gap:9px; padding:6px 2px; border:0; border-bottom:1px solid var(--border); background:none; text-align:left; }
 button.messenger-row { cursor:pointer; }
