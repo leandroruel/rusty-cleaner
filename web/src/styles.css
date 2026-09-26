@@ -70,6 +70,8 @@ h2 { margin:0; font-size:13px; font-weight:700; }
 .found-label i { width:7px; height:7px; flex:none; border-radius:2px; background:var(--swatch); }
 .found-value { color:var(--text); font:11px var(--font-mono); }
 .scan-actions { display:flex; flex:none; gap:8px; width:100%; margin-top:10px; }
+.cancel-scan { width:100%; margin-top:8px; }
+.cancel-scan[hidden] { display:none; }
 .button { min-height:36px; padding:8px 13px; border:1px solid var(--border); border-radius:5px; background:var(--panel-2); cursor:pointer; font-size:11px; font-weight:700; transition:transform .16s, opacity .16s, background .16s; }
 .button:not(:disabled):active { transform:translateY(1px); }
 .button:disabled { cursor:not-allowed; opacity:.42; }

@@ -91,6 +91,8 @@ const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 const emptyTrashButton = getElement<HTMLButtonElement>("empty-trash-button");
 const searchInput = getElement<HTMLInputElement>("search-input");
 const sortSelect = getElement<HTMLSelectElement>("sort-select");
+const cancelScanButton = getElement<HTMLButtonElement>("cancel-scan-button");
+const selectCategoryButton = getElement<HTMLButtonElement>("select-category-button");
 let confirmAction: (() => void) | null = null;
 
 function setTheme(theme: "rusty" | "omarchy"): void {
@@ -115,6 +117,19 @@ void refreshMetrics();
 window.setInterval(() => void refreshMetrics(), 3000);
 
 scanButton.addEventListener("click", () => void runScan());
+cancelScanButton.addEventListener("click", () => {
+  if (scanning) scanCancelled = true;
+});
+selectCategoryButton.addEventListener("click", () => {
+  const visible = visibleFindings();
+  const allSelected = visible.length > 0 && visible.every((item) => selectedPaths.has(item.path));
+  if (allSelected) {
+    visible.forEach((item) => selectedPaths.delete(item.path));
+  } else {
+    visible.forEach((item) => selectedPaths.add(item.path));
+  }
+  renderFindings();
+});
 selectAll.addEventListener("change", () => {
   const visible = visibleFindings();
   if (selectAll.checked) {
@@ -218,6 +233,8 @@ function showToast(message: string): void {
 }
 
 const scanOrder: FeatureKey[] = ["trash", "temp", "browser", "chat-media", "orphan", "large-old", "duplicates"];
+let scanCancelled = false;
+let scanning = false;
 
 async function runScan(): Promise<void> {
   if (!isTauri()) {
@@ -225,8 +242,11 @@ async function runScan(): Promise<void> {
     return;
   }
 
+  scanning = true;
+  scanCancelled = false;
   scanButton.disabled = true;
   resultsButton.disabled = true;
+  cancelScanButton.hidden = false;
   getElement("scan-visual").classList.add("is-scanning");
   getElement("system-status").classList.add("is-busy");
   findings = [];
@@ -241,6 +261,7 @@ async function runScan(): Promise<void> {
 
   try {
     for (const [index, feature] of scanOrder.entries()) {
+      if (scanCancelled) break;
       scanButton.textContent = `Analisando ${index + 1}/${scanOrder.length}...`;
       statusLabel.textContent = `Analisando: ${featureLabels[feature]}`;
       getElement("scan-caption").textContent = `Varrendo ${featureLabels[feature].toLowerCase()}...`;
@@ -256,13 +277,19 @@ async function runScan(): Promise<void> {
 
     const elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = findings.length === 0;
-    statusLabel.textContent = `${platformName(platform)} · análise concluída`;
+    statusLabel.textContent = scanCancelled
+      ? "Análise interrompida"
+      : `${platformName(platform)} · análise concluída`;
     getElement("system-status").classList.remove("is-busy");
-    getElement("scan-caption").textContent = `${findings.length.toLocaleString("pt-BR")} itens encontrados em ${elapsed.toFixed(1).replace(".", ",")}s`;
+    getElement("scan-caption").textContent = scanCancelled
+      ? `Varredura cancelada · ${findings.length.toLocaleString("pt-BR")} itens parciais`
+      : `${findings.length.toLocaleString("pt-BR")} itens encontrados em ${elapsed.toFixed(1).replace(".", ",")}s`;
     if (failed > 0) {
       showToast(`${failed} ${failed === 1 ? "categoria falhou" : "categorias falharam"} durante a varredura.`);
     }
   } finally {
+    scanning = false;
+    cancelScanButton.hidden = true;
     getElement("scan-visual").classList.remove("is-scanning");
     scanButton.disabled = false;
     scanButton.textContent = "Escanear novamente";
