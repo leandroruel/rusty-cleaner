@@ -13,10 +13,11 @@
     "windows": [
       {
         "title": "Rusty Cleaner",
-        "width": 1180,
-        "height": 820,
+        "width": 1100,
+        "height": 700,
         "minWidth": 760,
-        "minHeight": 600,
+        "minHeight": 580,
+        "center": true,
         "resizable": true
       }
     ],

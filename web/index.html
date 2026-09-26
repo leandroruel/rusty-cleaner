@@ -13,15 +13,9 @@
           <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="app-name"><strong>Rusty</strong> Cleaner</span>
         </div>
-        <div class="title-actions">
-          <div class="theme-switch" role="group" aria-label="Tema da interface">
-            <button class="theme-option is-active" type="button" data-theme-option="rusty" aria-pressed="true">Rusty</button>
-            <button class="theme-option" type="button" data-theme-option="omarchy" aria-pressed="false">Omarchy</button>
-          </div>
-          <div class="system-status" id="system-status" role="status">
-            <span class="status-dot"></span>
-            <span id="status-label">Pronto para analisar</span>
-          </div>
+        <div class="system-status" id="system-status" role="status">
+          <span class="status-dot"></span>
+          <span id="status-label">Pronto para analisar</span>
         </div>
       </header>
 
@@ -115,25 +109,28 @@
           <div class="monitor-item"><span class="monitor-label">DURAÇÃO</span><strong id="duration-count">—</strong></div>
         </section>
 
-        <section class="panel results-panel" id="results-panel" aria-labelledby="results-title">
+        <section class="panel results-panel" id="results-panel" aria-labelledby="results-title" aria-label="Resultados da varredura" hidden>
           <div class="results-heading">
             <div>
               <p class="eyebrow">REVISÃO</p>
               <h2 id="results-title">Itens encontrados</h2>
             </div>
-            <label class="filter-control">
-              <span>Categoria</span>
-              <select id="feature-filter" aria-label="Filtrar por categoria">
-                <option value="all">Todas</option>
-                <option value="orphan">Dados antigos de apps</option>
-                <option value="temp">Temporários</option>
-                <option value="chat-media">Mídia de mensageiros</option>
-                <option value="trash">Lixeira</option>
-                <option value="browser">Navegadores</option>
-                <option value="duplicates">Duplicados</option>
-                <option value="large-old">Grandes e antigos</option>
-              </select>
-            </label>
+            <div class="results-controls">
+              <label class="filter-control">
+                <span>Categoria</span>
+                <select id="feature-filter" aria-label="Filtrar por categoria">
+                  <option value="all">Todas</option>
+                  <option value="orphan">Dados antigos de apps</option>
+                  <option value="temp">Temporários</option>
+                  <option value="chat-media">Mídia de mensageiros</option>
+                  <option value="trash">Lixeira</option>
+                  <option value="browser">Navegadores</option>
+                  <option value="duplicates">Duplicados</option>
+                  <option value="large-old">Grandes e antigos</option>
+                </select>
+              </label>
+              <button class="button button-quiet close-results" id="close-results" type="button">Voltar ao painel</button>
+            </div>
           </div>
           <div class="results-table-wrap">
             <table>

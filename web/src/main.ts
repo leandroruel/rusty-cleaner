@@ -55,32 +55,35 @@ let toastTimer = 0;
 const scanButton = getElement<HTMLButtonElement>("scan-button");
 const resultsButton = getElement<HTMLButtonElement>("results-button");
 const filterSelect = getElement<HTMLSelectElement>("feature-filter");
+const resultsPanel = getElement<HTMLElement>("results-panel");
+const closeResultsButton = getElement<HTMLButtonElement>("close-results");
 const statusLabel = getElement<HTMLSpanElement>("status-label");
 const toast = getElement<HTMLDivElement>("toast");
-const themeOptions = document.querySelectorAll<HTMLButtonElement>("[data-theme-option]");
 
 function setTheme(theme: "rusty" | "omarchy"): void {
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem("rusty-cleaner-theme", theme);
-  themeOptions.forEach((option) => {
-    const isActive = option.dataset.themeOption === theme;
-    option.classList.toggle("is-active", isActive);
-    option.setAttribute("aria-pressed", String(isActive));
-  });
 }
 
-setTheme(localStorage.getItem("rusty-cleaner-theme") === "omarchy" ? "omarchy" : "rusty");
-themeOptions.forEach((option) => {
-  option.addEventListener("click", () => {
-    if (option.dataset.themeOption === "rusty" || option.dataset.themeOption === "omarchy") {
-      setTheme(option.dataset.themeOption);
-    }
-  });
-});
+async function applySystemTheme(): Promise<void> {
+  if (!isTauri()) {
+    setTheme("rusty");
+    return;
+  }
+
+  try {
+    setTheme(await invoke<"rusty" | "omarchy">("detect_theme"));
+  } catch {
+    setTheme("rusty");
+  }
+}
+
+void applySystemTheme();
 
 scanButton.addEventListener("click", () => void runScan());
-resultsButton.addEventListener("click", () => {
-  getElement("results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+resultsButton.addEventListener("click", () => openResults());
+closeResultsButton.addEventListener("click", closeResults);
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !resultsPanel.hidden) closeResults();
 });
 filterSelect.addEventListener("change", () => {
   activeFilter = filterSelect.value;
@@ -90,12 +93,22 @@ filterSelect.addEventListener("change", () => {
 document.querySelectorAll<HTMLButtonElement>("[data-filter]").forEach((button) => {
   button.addEventListener("click", () => {
     const feature = button.dataset.filter ?? "all";
-    activeFilter = feature;
-    filterSelect.value = feature;
-    renderFindings();
-    getElement("results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    openResults(feature);
   });
 });
+
+function openResults(feature = activeFilter): void {
+  activeFilter = feature;
+  filterSelect.value = feature;
+  renderFindings();
+  resultsPanel.hidden = false;
+  closeResultsButton.focus();
+}
+
+function closeResults(): void {
+  resultsPanel.hidden = true;
+  resultsButton.focus();
+}
 
 function getElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -202,12 +215,7 @@ function renderSummary(result: ScanResult): void {
       row.querySelector<HTMLElement>(".found-label")!.style.setProperty("--swatch", featureColors[feature]);
       row.querySelector<HTMLElement>(".found-label")!.append(document.createTextNode(featureLabels[feature]));
       row.querySelector<HTMLElement>(".found-value")!.textContent = formatBytes(data.size);
-      row.addEventListener("click", () => {
-        activeFilter = feature;
-        filterSelect.value = feature;
-        renderFindings();
-        getElement("results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      row.addEventListener("click", () => openResults(feature));
       breakdown.append(row);
     }
   }
