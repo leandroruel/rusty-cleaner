@@ -80,16 +80,21 @@ pub fn chat_dirs() -> Vec<PathBuf> {
             paths.push(home.join(".local/share/TelegramDesktop"));
             paths.push(home.join(".var/app/org.telegram.desktop"));
             paths.push(home.join(".config/discord"));
+            paths.push(home.join(".var/app/com.rtosta.zapzap"));
+            paths.push(home.join(".config/whatsdesk"));
+            paths.push(home.join(".config/whatsapp-for-linux"));
         }
         #[cfg(target_os = "macos")]
         {
             paths.push(home.join("Library/Application Support/Telegram Desktop"));
             paths.push(home.join("Library/Application Support/discord"));
+            paths.push(home.join("Library/Application Support/WhatsApp"));
         }
         #[cfg(windows)]
         if let Some(roaming) = env::var_os("APPDATA") {
             paths.push(PathBuf::from(roaming).join("Telegram Desktop"));
             paths.push(PathBuf::from(roaming).join("discord"));
+            paths.push(PathBuf::from(roaming).join("WhatsApp"));
         }
     }
     paths

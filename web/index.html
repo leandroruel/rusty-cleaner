@@ -96,11 +96,11 @@
                   <span class="messenger-name">Discord</span>
                   <span class="messenger-count" id="discord-count">—</span>
                 </button>
-                <div class="messenger-row unsupported-row">
+                <button class="messenger-row" type="button" data-filter="chat-media">
                   <span class="app-glyph glyph-whatsapp" aria-hidden="true">W</span>
                   <span class="messenger-name">WhatsApp</span>
-                  <span class="messenger-count">em breve</span>
-                </div>
+                  <span class="messenger-count" id="whatsapp-count">—</span>
+                </button>
               </div>
             </section>
           </div>
@@ -121,6 +121,20 @@
               <h2 id="results-title">Itens encontrados</h2>
             </div>
             <div class="results-controls">
+              <label class="filter-control search-control">
+                <span>Buscar</span>
+                <input type="search" id="search-input" placeholder="Nome ou caminho..." aria-label="Buscar nos resultados" />
+              </label>
+              <label class="filter-control">
+                <span>Ordenar</span>
+                <select id="sort-select" aria-label="Ordenar resultados">
+                  <option value="size-desc">Maior tamanho</option>
+                  <option value="size-asc">Menor tamanho</option>
+                  <option value="age-desc">Mais antigo</option>
+                  <option value="age-asc">Mais recente</option>
+                  <option value="name-asc">Nome (A–Z)</option>
+                </select>
+              </label>
               <label class="filter-control">
                 <span>Categoria</span>
                 <select id="feature-filter" aria-label="Filtrar por categoria">

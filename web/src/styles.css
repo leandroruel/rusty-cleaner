@@ -123,6 +123,8 @@ button.messenger-row:hover .messenger-name { color:var(--text); }
 .results-controls { display:flex; align-items:center; gap:10px; }
 .filter-control { display:flex; align-items:center; gap:8px; color:var(--text-faint); font-size:10px; }
 .filter-control select { max-width:210px; min-height:32px; padding:5px 26px 5px 9px; border:1px solid var(--border); border-radius:4px; background:var(--panel-2); color:var(--text); font-size:10px; }
+.filter-control input[type="search"] { width:180px; min-height:32px; padding:5px 9px; border:1px solid var(--border); border-radius:4px; background:var(--panel-2); color:var(--text); font-size:10px; }
+.filter-control input[type="search"]::placeholder { color:var(--text-faint); }
 .results-table-wrap { min-height:0; flex:1; overflow:auto; border-top:1px solid var(--border); }
 table { width:100%; border-collapse:collapse; text-align:left; }
 th { position:sticky; top:0; z-index:1; background:#151a24; color:var(--text-faint); font:500 9px var(--font-mono); letter-spacing:.05em; }

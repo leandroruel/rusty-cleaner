@@ -68,6 +68,8 @@ const featureColors: Record<FeatureKey, string> = {
 
 let findings: Finding[] = [];
 let activeFilter = "all";
+let searchQuery = "";
+let sortMode = "size-desc";
 let toastTimer = 0;
 const selectedPaths = new Set<string>();
 
@@ -87,6 +89,8 @@ const confirmText = getElement<HTMLParagraphElement>("confirm-text");
 const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
 const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 const emptyTrashButton = getElement<HTMLButtonElement>("empty-trash-button");
+const searchInput = getElement<HTMLInputElement>("search-input");
+const sortSelect = getElement<HTMLSelectElement>("sort-select");
 let confirmAction: (() => void) | null = null;
 
 function setTheme(theme: "rusty" | "omarchy"): void {
@@ -161,6 +165,14 @@ window.addEventListener("keydown", (event) => {
 });
 filterSelect.addEventListener("change", () => {
   activeFilter = filterSelect.value;
+  renderFindings();
+});
+searchInput.addEventListener("input", () => {
+  searchQuery = searchInput.value.trim().toLowerCase();
+  renderFindings();
+});
+sortSelect.addEventListener("change", () => {
+  sortMode = sortSelect.value;
   renderFindings();
 });
 
@@ -267,7 +279,7 @@ function platformName(platform: string): string {
 function renderSummary(result: ScanResult): void {
   const totalSize = findings.reduce((total, item) => total + item.size, 0);
   const counts = new Map<FeatureKey, { count: number; size: number }>();
-  const messengerCounts = { telegram: 0, discord: 0 };
+  const messengerCounts = { telegram: 0, discord: 0, whatsapp: 0 };
   for (const item of findings) {
     const current = counts.get(item.feature) ?? { count: 0, size: 0 };
     current.count += 1;
@@ -277,6 +289,7 @@ function renderSummary(result: ScanResult): void {
       const path = item.path.toLowerCase();
       if (path.includes("telegram")) messengerCounts.telegram += 1;
       if (path.includes("discord")) messengerCounts.discord += 1;
+      if (path.includes("whatsapp") || path.includes("whatsdesk") || path.includes("zapzap")) messengerCounts.whatsapp += 1;
     }
   }
 
@@ -334,10 +347,25 @@ function renderSummary(result: ScanResult): void {
   getElement("messenger-size").textContent = formatBytes(chat.size);
   getElement("telegram-count").textContent = `${messengerCounts.telegram.toLocaleString("pt-BR")} itens`;
   getElement("discord-count").textContent = `${messengerCounts.discord.toLocaleString("pt-BR")} itens`;
+  getElement("whatsapp-count").textContent = `${messengerCounts.whatsapp.toLocaleString("pt-BR")} itens`;
 }
 
 function visibleFindings(): Finding[] {
-  return activeFilter === "all" ? findings : findings.filter((item) => item.feature === activeFilter);
+  let visible = activeFilter === "all" ? [...findings] : findings.filter((item) => item.feature === activeFilter);
+  if (searchQuery) {
+    visible = visible.filter((item) =>
+      item.name.toLowerCase().includes(searchQuery) || item.path.toLowerCase().includes(searchQuery)
+    );
+  }
+  const byName = (a: Finding, b: Finding) => a.name.localeCompare(b.name);
+  switch (sortMode) {
+    case "size-asc": visible.sort((a, b) => a.size - b.size || byName(a, b)); break;
+    case "age-desc": visible.sort((a, b) => (b.ageDays ?? -1) - (a.ageDays ?? -1) || byName(a, b)); break;
+    case "age-asc": visible.sort((a, b) => (a.ageDays ?? Number.MAX_SAFE_INTEGER) - (b.ageDays ?? Number.MAX_SAFE_INTEGER) || byName(a, b)); break;
+    case "name-asc": visible.sort(byName); break;
+    default: visible.sort((a, b) => b.size - a.size || byName(a, b));
+  }
+  return visible;
 }
 
 function renderFindings(): void {
