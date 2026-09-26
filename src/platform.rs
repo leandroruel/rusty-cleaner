@@ -100,6 +100,44 @@ pub fn chat_dirs() -> Vec<PathBuf> {
     paths
 }
 
+/// Names of packages installed on the system, lowercased. Used to detect
+/// application data left behind by uninstalled programs. Returns an empty set
+/// on platforms or setups where no package database is available.
+pub fn installed_packages() -> std::collections::HashSet<String> {
+    let mut packages = std::collections::HashSet::new();
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(output) = run_quiet("pacman", &["-Qq"]) {
+            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        }
+        if let Some(output) = run_quiet("dpkg-query", &["-W", "-f=${Package}\n"]) {
+            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        }
+        if let Some(output) = run_quiet("flatpak", &["list", "--app", "--columns=application"]) {
+            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(output) = run_quiet("brew", &["list", "--versions", "-1"]) {
+            packages.extend(output.lines().map(|line| line.trim().to_lowercase()));
+        }
+    }
+    packages
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn run_quiet(program: &str, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new(program)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
