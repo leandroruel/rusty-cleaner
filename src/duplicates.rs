@@ -23,7 +23,9 @@ fn is_shared_component(path: &Path) -> bool {
 pub fn scan() -> Vec<Finding> {
     let roots = platform::home_dir().into_iter().collect::<Vec<_>>();
     let files = scanner::walk_files(&roots, 12, |path, metadata| {
-        metadata.len() >= 1_048_576 && !is_shared_component(path)
+        metadata.len() >= 1_048_576
+            && !is_shared_component(path)
+            && !scanner::is_runtime_binary(path)
     });
     let mut by_size: HashMap<u64, Vec<_>> = HashMap::new();
     for path in files {
@@ -137,6 +139,22 @@ mod tests {
         )));
         assert!(!is_shared_component(Path::new(
             "/home/user/Downloads/photo.jpg"
+        )));
+    }
+
+    #[test]
+    fn excludes_runtime_binaries_from_duplicate_scan() {
+        assert!(crate::scanner::is_runtime_binary(Path::new(
+            "C:/Users/App/Microsoft.CognitiveServices.Speech.core.dll"
+        )));
+        assert!(crate::scanner::is_runtime_binary(Path::new(
+            "/home/user/.config/app/libffmpeg.so"
+        )));
+        assert!(!crate::scanner::is_runtime_binary(Path::new(
+            "/home/user/Downloads/photo.jpg"
+        )));
+        assert!(!crate::scanner::is_runtime_binary(Path::new(
+            "/home/user/Downloads/installer.exe.txt"
         )));
     }
 }

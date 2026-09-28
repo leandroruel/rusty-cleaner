@@ -101,6 +101,31 @@ pub fn walk_files(
     found
 }
 
+/// Runtime binaries and native libraries shipped by applications. Identical
+/// copies across apps are required dependencies (e.g. WebView2, Electron,
+/// Azure Speech SDK), not removable duplicates — deleting one breaks the app
+/// that owns it. A disk cleaner should only ever flag user data.
+pub fn is_runtime_binary(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            matches!(
+                ext.to_ascii_lowercase().as_str(),
+                "dll"
+                    | "exe"
+                    | "sys"
+                    | "drv"
+                    | "ocx"
+                    | "cpl"
+                    | "so"
+                    | "dylib"
+                    | "node"
+                    | "pyd"
+                    | "framework"
+            )
+        })
+}
+
 fn walk_one(
     path: &Path,
     depth: usize,
@@ -224,7 +249,7 @@ pub fn unix_epoch() -> SystemTime {
 
 #[cfg(test)]
 mod tests {
-    use super::is_excluded_dir;
+    use super::{is_excluded_dir, is_runtime_binary};
     use std::path::Path;
 
     #[test]
@@ -248,5 +273,24 @@ mod tests {
         }
         assert!(!is_excluded_dir(Path::new("/home/user/Downloads")));
         assert!(!is_excluded_dir(Path::new("/home/user/Documents")));
+    }
+
+    #[test]
+    fn detects_runtime_binaries_by_extension() {
+        for path in [
+            "C:/Apps/App/Microsoft.CognitiveServices.Speech.core.dll",
+            "C:/Apps/App/app.exe",
+            "C:/Windows/System32/driver.sys",
+            "/usr/lib/libwebkit2gtk-4.1.so",
+            "/usr/lib/libtauri.dylib",
+            "/home/user/.config/app/resources.pak.node",
+        ] {
+            assert!(is_runtime_binary(Path::new(path)), "{path}");
+        }
+        assert!(!is_runtime_binary(Path::new(
+            "/home/user/Downloads/photo.jpg"
+        )));
+        assert!(!is_runtime_binary(Path::new("/home/user/notes.txt")));
+        assert!(!is_runtime_binary(Path::new("/home/user/no-extension")));
     }
 }
