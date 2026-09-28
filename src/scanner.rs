@@ -85,7 +85,21 @@ pub struct Finding {
 pub fn walk_files(
     roots: &[PathBuf],
     max_depth: usize,
+    accept: impl FnMut(&Path, &Metadata) -> bool,
+) -> Vec<PathBuf> {
+    walk_with_dir_exclusions(roots, max_depth, accept, true)
+}
+
+/// Same as [`walk_files`], but ignores the global heavy-directory exclusion
+/// list (`.cache`, `flatpak`, `snap`, ...). Used by the browser scanner, whose
+/// roots are explicit narrow cache paths that live inside those directories —
+/// a global exclusion of `.cache` must never hide browser cache files from it.
+/// User-configured exclusions from the settings screen are still respected.
+pub fn walk_with_dir_exclusions(
+    roots: &[PathBuf],
+    max_depth: usize,
     mut accept: impl FnMut(&Path, &Metadata) -> bool,
+    respect_dir_exclusions: bool,
 ) -> Vec<PathBuf> {
     let user_excluded = crate::settings::load_excluded_dirs();
     let mut found = Vec::new();
@@ -96,7 +110,15 @@ pub fn walk_files(
         {
             continue;
         }
-        walk_one(root, 0, max_depth, &user_excluded, &mut accept, &mut found);
+        walk_one(
+            root,
+            0,
+            max_depth,
+            &user_excluded,
+            respect_dir_exclusions,
+            &mut accept,
+            &mut found,
+        );
     }
     found
 }
@@ -131,6 +153,7 @@ fn walk_one(
     depth: usize,
     max_depth: usize,
     user_excluded: &[PathBuf],
+    respect_dir_exclusions: bool,
     accept: &mut impl FnMut(&Path, &Metadata) -> bool,
     found: &mut Vec<PathBuf>,
 ) {
@@ -149,7 +172,7 @@ fn walk_one(
     if !metadata.is_dir() || depth >= max_depth {
         return;
     }
-    if depth > 0 && is_excluded_dir(path) {
+    if respect_dir_exclusions && depth > 0 && is_excluded_dir(path) {
         return;
     }
     if user_excluded
@@ -168,6 +191,7 @@ fn walk_one(
             depth + 1,
             max_depth,
             user_excluded,
+            respect_dir_exclusions,
             accept,
             found,
         );
@@ -249,7 +273,7 @@ pub fn unix_epoch() -> SystemTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_excluded_dir, is_runtime_binary};
+    use super::{is_excluded_dir, is_runtime_binary, walk_files, walk_with_dir_exclusions};
     use std::path::Path;
 
     #[test]
@@ -273,6 +297,37 @@ mod tests {
         }
         assert!(!is_excluded_dir(Path::new("/home/user/Downloads")));
         assert!(!is_excluded_dir(Path::new("/home/user/Documents")));
+    }
+
+    #[test]
+    fn browser_scan_finds_cache_files_inside_a_dot_cache_directory() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "rusty-cleaner-browser-{}-{nonce}",
+            std::process::id()
+        ));
+        // Mirror a snap browser layout: the cache tree is nested inside a
+        // directory literally named ".cache", which the generic walker skips.
+        let cache_file = root.join(".cache/mozilla/firefox/profile/cache2/entries/f_0");
+        std::fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
+        std::fs::write(&cache_file, b"entry").unwrap();
+
+        let accept = |path: &Path, _: &std::fs::Metadata| {
+            path.to_string_lossy().to_lowercase().contains("cache")
+        };
+        let generic = walk_files(std::slice::from_ref(&root), 8, accept);
+        let browser = walk_with_dir_exclusions(std::slice::from_ref(&root), 8, accept, false);
+
+        std::fs::remove_dir_all(&root).unwrap();
+
+        assert!(
+            generic.is_empty(),
+            "generic walker must skip .cache trees, found {generic:?}"
+        );
+        assert_eq!(browser, vec![cache_file]);
     }
 
     #[test]

@@ -51,20 +51,46 @@ pub fn browser_dirs() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     #[cfg(target_os = "linux")]
     if let Some(home) = home_dir() {
+        // Native package installs (pacman/dpkg/deb/rpm).
         paths.push(home.join(".cache/mozilla"));
         paths.push(home.join(".cache/google-chrome"));
+        paths.push(home.join(".cache/chromium"));
+        paths.push(home.join(".cache/BraveSoftware"));
+        paths.push(home.join(".cache/microsoft-edge"));
         paths.push(home.join(".config/google-chrome"));
         paths.push(home.join(".config/chromium"));
+        paths.push(home.join(".config/BraveSoftware"));
+        paths.push(home.join(".config/microsoft-edge"));
+        // Flatpak installs keep cache and config under ~/.var/app/<app-id>.
+        paths.push(home.join(".var/app/org.mozilla.firefox/cache"));
+        paths.push(home.join(".var/app/org.chromium.Chromium/cache"));
+        paths.push(home.join(".var/app/com.brave.Browser/cache"));
+        paths.push(home.join(".var/app/com.brave.Browser/config/BraveSoftware"));
+        paths.push(home.join(".var/app/com.microsoft.Edge/cache"));
+        paths.push(home.join(".var/app/com.microsoft.Edge/config/microsoft-edge"));
+        // Snap installs keep cache under ~/snap/<name>/common/.cache.
+        paths.push(home.join("snap/firefox/common/.cache"));
+        paths.push(home.join("snap/chromium/common/.cache"));
+        paths.push(home.join("snap/brave/common/.cache"));
     }
     #[cfg(target_os = "macos")]
     if let Some(home) = home_dir() {
-        paths.push(home.join("Library/Caches"));
+        paths.push(home.join("Library/Caches/Google/Chrome"));
+        paths.push(home.join("Library/Caches/Firefox"));
+        paths.push(home.join("Library/Caches/Chromium"));
+        paths.push(home.join("Library/Caches/BraveSoftware"));
+        paths.push(home.join("Library/Caches/microsoft-edge"));
         paths.push(home.join("Library/Application Support/Google/Chrome"));
         paths.push(home.join("Library/Application Support/Firefox"));
+        paths.push(home.join("Library/Application Support/BraveSoftware"));
+        paths.push(home.join("Library/Application Support/Microsoft Edge"));
     }
     #[cfg(windows)]
     if let Some(local) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
         paths.push(local.join("Google/Chrome/User Data"));
+        paths.push(local.join("Chromium/User Data"));
+        paths.push(local.join("BraveSoftware/Brave-Browser/User Data"));
+        paths.push(local.join("Microsoft/Edge/User Data"));
         paths.push(local.join("Mozilla/Firefox/Profiles"));
     }
     paths
@@ -186,5 +212,19 @@ mod tests {
     #[test]
     fn temporary_roots_only_include_the_os_temp_directory() {
         assert_eq!(super::temp_dirs(), vec![std::env::temp_dir()]);
+    }
+
+    #[test]
+    fn browser_roots_cover_the_cache_paths_of_all_supported_browsers() {
+        let roots = super::browser_dirs();
+        let joined = roots
+            .iter()
+            .map(|root| root.to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("\n")
+            .to_lowercase();
+        for marker in ["mozilla", "chrome", "chromium", "brave", "edge"] {
+            assert!(joined.contains(marker), "browser root missing: {marker}");
+        }
     }
 }
