@@ -1,0 +1,19 @@
+pkgbase = rusty-cleaner-bin
+	pkgdesc = Fast, open-source, cross-platform disk cleaner built in Rust (Tauri)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/leandroruel/rusty-cleaner
+	arch = x86_64
+	license = MIT
+	provides = rusty-cleaner
+	conflicts = rusty-cleaner
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = hicolor-icon-theme
+	optdepends = libayatana-appindicator: system tray support
+	source_x86_64 = https://github.com/leandroruel/rusty-cleaner/releases/download/v0.1.0/Rusty.Cleaner_0.1.0_amd64.deb
+	source_x86_64 = https://raw.githubusercontent.com/leandroruel/rusty-cleaner/main/LICENSE
+	sha256sums_x86_64 = f49832fd27a1ba9c64ec8e53bdfc88e10e744d9d87693764646e25912e14cd82
+	sha256sums_x86_64 = 616d434754a60442ed93a889579db5e527dac525df6bd80ed33fb82ce0cf1d8c
+
+pkgname = rusty-cleaner-bin

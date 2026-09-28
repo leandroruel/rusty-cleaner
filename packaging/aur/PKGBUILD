@@ -1,0 +1,41 @@
+# Maintainer: Leandro Ruel <https://github.com/leandroruel>
+pkgname=rusty-cleaner-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Fast, open-source, cross-platform disk cleaner built in Rust (Tauri)"
+arch=('x86_64')
+url="https://github.com/leandroruel/rusty-cleaner"
+license=('MIT')
+provides=('rusty-cleaner')
+conflicts=('rusty-cleaner')
+depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme')
+optdepends=(
+  'libayatana-appindicator: system tray support'
+)
+source_x86_64=("https://github.com/leandroruel/rusty-cleaner/releases/download/v${pkgver}/Rusty.Cleaner_${pkgver}_amd64.deb"
+               "https://raw.githubusercontent.com/leandroruel/rusty-cleaner/main/LICENSE")
+sha256sums_x86_64=('f49832fd27a1ba9c64ec8e53bdfc88e10e744d9d87693764646e25912e14cd82'
+                   '616d434754a60442ed93a889579db5e527dac525df6bd80ed33fb82ce0cf1d8c')
+noextract=("Rusty.Cleaner_${pkgver}_amd64.deb")
+
+package() {
+    cd "${srcdir}"
+
+    # Unpack the .deb (ar archive) and its payload
+    bsdtar -xf "Rusty.Cleaner_${pkgver}_amd64.deb" data.tar.*
+    bsdtar -xf data.tar.* -C "${pkgdir}"
+
+    # Fix desktop file name (Tauri ships it with a space)
+    if [[ -f "${pkgdir}/usr/share/applications/Rusty Cleaner.desktop" ]]; then
+        mv "${pkgdir}/usr/share/applications/Rusty Cleaner.desktop" \
+           "${pkgdir}/usr/share/applications/rusty-cleaner.desktop"
+    fi
+
+    # Fix icon directory name (Tauri ships 256x256@2 which is invalid)
+    if [[ -d "${pkgdir}/usr/share/icons/hicolor/256x256@2" ]]; then
+        mv "${pkgdir}/usr/share/icons/hicolor/256x256@2" \
+           "${pkgdir}/usr/share/icons/hicolor/256x256"
+    fi
+
+    install -Dm644 "${srcdir}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
