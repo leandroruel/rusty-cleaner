@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default desktop window permissions for Rusty Cleaner.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "dialog:default"]
 }

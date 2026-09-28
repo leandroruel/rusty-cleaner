@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getLocale, setLocale, t, type Locale } from "./i18n";
 import { getElement, showToast } from "./state";
 
@@ -9,6 +10,7 @@ const logPathEl = getElement<HTMLElement>("log-path");
 const openLogButton = getElement<HTMLButtonElement>("open-log-button");
 const excludeInput = getElement<HTMLInputElement>("exclude-input");
 const excludeAdd = getElement<HTMLButtonElement>("exclude-add");
+const excludeBrowse = getElement<HTMLButtonElement>("exclude-browse");
 const excludeList = getElement<HTMLUListElement>("exclude-list");
 const languageSelect = getElement<HTMLSelectElement>("language-select");
 
@@ -65,6 +67,18 @@ async function addExclusion(): Promise<void> {
   }
 }
 
+async function browseExclusion(): Promise<void> {
+  try {
+    const selected = await openDialog({ directory: true, multiple: false });
+    if (typeof selected === "string" && selected) {
+      excludeInput.value = selected;
+      excludeInput.focus();
+    }
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
 export function initSettings(onLocaleChange: () => void): void {
   settingsButton.addEventListener("click", () => void openSettings());
   settingsClose.addEventListener("click", () => { settingsOverlay.hidden = true; });
@@ -75,6 +89,7 @@ export function initSettings(onLocaleChange: () => void): void {
     invoke("open_log_folder").catch((error) => showToast(String(error)));
   });
   excludeAdd.addEventListener("click", () => void addExclusion());
+  excludeBrowse.addEventListener("click", () => void browseExclusion());
   excludeInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") void addExclusion();
   });
