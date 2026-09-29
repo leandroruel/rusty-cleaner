@@ -15,6 +15,6 @@ pub fn scan() -> Vec<Finding> {
         )
     })
     .into_iter()
-    .map(|path| scanner::finding(Feature::ChatMedia, path))
+    .map(|(path, metadata)| scanner::finding(Feature::ChatMedia, path, metadata))
     .collect()
 }

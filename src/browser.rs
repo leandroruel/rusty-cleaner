@@ -14,6 +14,6 @@ pub fn scan() -> Vec<Finding> {
         false,
     )
     .into_iter()
-    .map(|path| scanner::finding(Feature::Browser, path))
+    .map(|(path, metadata)| scanner::finding(Feature::Browser, path, metadata))
     .collect()
 }

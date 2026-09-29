@@ -7,19 +7,40 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// desktop app to show which folder is being scanned right now.
 type ProgressCallback = Box<dyn Fn(&Path) + Send>;
 
-static PROGRESS_CALLBACK: Mutex<Option<ProgressCallback>> = Mutex::new(None);
+struct ProgressState {
+    callback: Option<ProgressCallback>,
+    last_emit: std::time::Instant,
+}
+
+static PROGRESS: Mutex<Option<ProgressState>> = Mutex::new(None);
+
+/// Minimum interval between progress reports. Emitting per directory floods
+/// the UI with IPC events on large scans; the walker walks far faster than
+/// any human can read the current path.
+const PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(80);
 
 pub fn set_progress_callback(callback: Option<ProgressCallback>) {
-    if let Ok(mut slot) = PROGRESS_CALLBACK.lock() {
-        *slot = callback;
+    if let Ok(mut slot) = PROGRESS.lock() {
+        *slot = callback.map(|callback| ProgressState {
+            callback: Some(callback),
+            last_emit: std::time::Instant::now(),
+        });
     }
 }
 
 fn report_progress(path: &Path) {
-    if let Ok(slot) = PROGRESS_CALLBACK.lock() {
-        if let Some(callback) = slot.as_ref() {
-            callback(path);
-        }
+    let Ok(mut state) = PROGRESS.lock() else {
+        return;
+    };
+    let Some(state) = state.as_mut() else {
+        return;
+    };
+    if state.last_emit.elapsed() < PROGRESS_INTERVAL {
+        return;
+    }
+    state.last_emit = std::time::Instant::now();
+    if let Some(callback) = state.callback.as_ref() {
+        callback(path);
     }
 }
 
@@ -88,11 +109,13 @@ pub struct Finding {
     pub meta: Option<String>,
 }
 
+/// Walks `roots` and returns every accepted file together with the metadata
+/// already obtained during the walk, so callers never pay a second stat.
 pub fn walk_files(
     roots: &[PathBuf],
     max_depth: usize,
     accept: impl FnMut(&Path, &Metadata) -> bool,
-) -> Vec<PathBuf> {
+) -> Vec<(PathBuf, Metadata)> {
     walk_with_dir_exclusions(roots, max_depth, accept, true)
 }
 
@@ -106,7 +129,7 @@ pub fn walk_with_dir_exclusions(
     max_depth: usize,
     mut accept: impl FnMut(&Path, &Metadata) -> bool,
     respect_dir_exclusions: bool,
-) -> Vec<PathBuf> {
+) -> Vec<(PathBuf, Metadata)> {
     let user_excluded = crate::settings::load_excluded_dirs();
     let mut found = Vec::new();
     for root in roots {
@@ -161,7 +184,7 @@ fn walk_one(
     user_excluded: &[PathBuf],
     respect_dir_exclusions: bool,
     accept: &mut impl FnMut(&Path, &Metadata) -> bool,
-    found: &mut Vec<PathBuf>,
+    found: &mut Vec<(PathBuf, Metadata)>,
 ) {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return;
@@ -171,7 +194,7 @@ fn walk_one(
     }
     if metadata.is_file() {
         if accept(path, &metadata) {
-            found.push(path.to_path_buf());
+            found.push((path.to_path_buf(), metadata));
         }
         return;
     }
@@ -250,8 +273,10 @@ fn is_excluded_dir(path: &Path) -> bool {
     )
 }
 
-pub fn finding(feature: Feature, path: PathBuf) -> Finding {
-    let metadata = fs::metadata(&path).ok();
+/// Builds a finding from a path and the metadata already collected by the
+/// walker. Callers that lack fresh metadata can `fs::metadata` themselves,
+/// but the walker's output must never be stat-ted again.
+pub fn finding(feature: Feature, path: PathBuf, metadata: Metadata) -> Finding {
     Finding {
         feature,
         name: path
@@ -259,8 +284,8 @@ pub fn finding(feature: Feature, path: PathBuf) -> Finding {
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned(),
-        size: metadata.as_ref().map_or(0, Metadata::len),
-        modified: metadata.and_then(|item| item.modified().ok()),
+        size: metadata.len(),
+        modified: metadata.modified().ok(),
         path,
         meta: None,
     }
@@ -281,7 +306,7 @@ pub fn unix_epoch() -> SystemTime {
 #[cfg(test)]
 mod tests {
     use super::{is_excluded_dir, is_runtime_binary, walk_files, walk_with_dir_exclusions};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn excludes_package_manager_and_toolchain_directories() {
@@ -330,11 +355,12 @@ mod tests {
 
         std::fs::remove_dir_all(&root).unwrap();
 
+        let browser_paths: Vec<PathBuf> = browser.into_iter().map(|(path, _)| path).collect();
         assert!(
             generic.is_empty(),
             "generic walker must skip .cache trees, found {generic:?}"
         );
-        assert_eq!(browser, vec![cache_file]);
+        assert_eq!(browser_paths, vec![cache_file]);
     }
 
     #[test]

@@ -39,7 +39,7 @@ pub fn scan() -> Vec<Finding> {
             findings.extend(
                 files
                     .into_iter()
-                    .map(|file| scanner::finding(Feature::Orphan, file)),
+                    .map(|(file, metadata)| scanner::finding(Feature::Orphan, file, metadata)),
             );
         }
     }

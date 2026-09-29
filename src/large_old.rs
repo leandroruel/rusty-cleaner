@@ -14,6 +14,6 @@ pub fn scan() -> Vec<Finding> {
             && !scanner::is_runtime_binary(path)
     })
     .into_iter()
-    .map(|path| scanner::finding(Feature::LargeOld, path))
+    .map(|(path, metadata)| scanner::finding(Feature::LargeOld, path, metadata))
     .collect()
 }

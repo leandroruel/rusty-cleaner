@@ -4,6 +4,7 @@ pub mod chat_media;
 pub mod duplicates;
 pub mod large_old;
 pub mod orphan;
+pub mod parallel;
 pub mod platform;
 pub mod registry;
 pub mod scanner;

@@ -6,6 +6,6 @@ use crate::{
 pub fn scan() -> Vec<Finding> {
     scanner::walk_files(&platform::trash_dirs(), 12, |_, _| true)
         .into_iter()
-        .map(|path| scanner::finding(Feature::Trash, path))
+        .map(|(path, metadata)| scanner::finding(Feature::Trash, path, metadata))
         .collect()
 }

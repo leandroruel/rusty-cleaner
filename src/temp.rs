@@ -8,7 +8,7 @@ const MIN_AGE_DAYS: u64 = 7;
 pub fn scan() -> Vec<Finding> {
     scanner::walk_files(&platform::temp_dirs(), 6, |_, metadata| is_stale(metadata))
         .into_iter()
-        .map(|path| scanner::finding(Feature::Temporary, path))
+        .map(|(path, metadata)| scanner::finding(Feature::Temporary, path, metadata))
         .collect()
 }
 
