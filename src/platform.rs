@@ -196,7 +196,7 @@ pub fn installed_packages() -> std::collections::HashSet<String> {
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn run_quiet(program: &str, args: &[&str]) -> Option<String> {
+pub(crate) fn run_quiet(program: &str, args: &[&str]) -> Option<String> {
     let output = std::process::Command::new(program)
         .args(args)
         .output()

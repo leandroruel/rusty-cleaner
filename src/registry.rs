@@ -423,7 +423,7 @@ fn check_help_files(reader: &dyn RegistryReader) -> Vec<Issue> {
         .collect()
 }
 
-fn uninstall_roots() -> &'static [&'static str] {
+pub(crate) fn uninstall_roots() -> &'static [&'static str] {
     &[
         "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
         "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
@@ -640,6 +640,8 @@ fn check_windows_services(reader: &dyn RegistryReader) -> Vec<Issue> {
 }
 
 #[cfg(windows)]
+pub(crate) use windows_impl::open_key;
+#[cfg(windows)]
 mod windows_impl {
     use super::{FixOutcome, RegistryReader};
     use winreg::enums::{
@@ -671,6 +673,13 @@ mod windows_impl {
         } else {
             hive_key.open_subkey_with_flags(rest, perms).ok()
         }
+    }
+
+    /// Opens a registry key path (e.g.
+    /// `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\...`) with read access.
+    /// Shared with the applications scanner.
+    pub(crate) fn open_key(key: &str) -> Option<RegKey> {
+        open(key, KEY_READ)
     }
 
     impl RegistryReader for WinregReader {
@@ -744,10 +753,12 @@ mod windows_impl {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(windows))]
+    use super::fix;
     use super::{
         check_activex_and_class_issues, check_application_paths, check_fonts_with_dir,
         check_installer, check_missing_shared_dlls, check_mui_cache, check_run_at_startup,
-        check_sound_events, check_unused_file_extensions, check_windows_services, fix,
+        check_sound_events, check_unused_file_extensions, check_windows_services,
         start_menu_ordering_issues, RegistryReader,
     };
     use std::collections::HashMap;

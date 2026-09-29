@@ -145,6 +145,91 @@ struct RegistryFixResult {
     failed: Vec<TrashFailure>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppView {
+    name: String,
+    path: String,
+    size: Option<u64>,
+    last_used: Option<u64>,
+    uninstall_kind: Option<String>,
+    uninstall_arg: Option<String>,
+}
+
+fn to_app_view(app: rusty_cleaner::applications::AppEntry) -> AppView {
+    let (kind, arg) = match &app.uninstall {
+        Some(action) => (
+            Some(action.kind().to_owned()),
+            Some(match action {
+                rusty_cleaner::applications::Uninstall::MacBundle(path) => {
+                    path.to_string_lossy().into_owned()
+                }
+                rusty_cleaner::applications::Uninstall::Pacman(arg)
+                | rusty_cleaner::applications::Uninstall::Dpkg(arg)
+                | rusty_cleaner::applications::Uninstall::Rpm(arg)
+                | rusty_cleaner::applications::Uninstall::Flatpak(arg)
+                | rusty_cleaner::applications::Uninstall::Snap(arg)
+                | rusty_cleaner::applications::Uninstall::Windows(arg) => arg.clone(),
+            }),
+        ),
+        None => (None, None),
+    };
+    AppView {
+        name: app.name,
+        path: app.path.to_string_lossy().into_owned(),
+        size: app.size,
+        last_used: app
+            .last_used
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|age| age.as_secs()),
+        uninstall_kind: kind,
+        uninstall_arg: arg,
+    }
+}
+
+#[tauri::command]
+async fn list_applications() -> Result<Vec<AppView>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let started = std::time::Instant::now();
+        let apps = rusty_cleaner::applications::scan();
+        rusty_cleaner::activity_log::record(
+            "applications-scan",
+            &format!(
+                "apps={} elapsed_ms={}",
+                apps.len(),
+                started.elapsed().as_millis()
+            ),
+        );
+        Ok(apps.into_iter().map(to_app_view).collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UninstallRequest {
+    kind: String,
+    arg: String,
+    name: String,
+}
+
+#[tauri::command]
+async fn uninstall_application(request: UninstallRequest) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let action = rusty_cleaner::applications::Uninstall::parse(&request.kind, &request.arg)
+            .ok_or_else(|| format!("Unsupported uninstall kind: {}", request.kind))?;
+        rusty_cleaner::applications::uninstall(&action).map_err(|error| error.to_string())?;
+        rusty_cleaner::activity_log::record(
+            "uninstall",
+            &format!("{} ({})", request.name, request.kind),
+        );
+        Ok(())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 async fn fix_registry_issues(items: Vec<RegistryFixItem>) -> Result<RegistryFixResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -475,6 +560,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             scan_candidates,
             scan_registry_issues,
+            list_applications,
+            uninstall_application,
             detect_theme,
             trash_candidates,
             fix_registry_issues,

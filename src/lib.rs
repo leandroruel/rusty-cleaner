@@ -1,4 +1,5 @@
 pub mod activity_log;
+pub mod applications;
 pub mod browser;
 pub mod chat_media;
 pub mod duplicates;
