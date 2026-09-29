@@ -40,6 +40,11 @@ export type RegistryFixResult = {
   failed: { path: string; error: string }[];
 };
 
+export type CacheCleanResult = {
+  removed: string[];
+  failed: { path: string; error: string }[];
+};
+
 export type SystemMetrics = {
   cpuPercent: number;
   memoryUsed: number;

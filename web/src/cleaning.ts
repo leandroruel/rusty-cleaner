@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { number, t } from "./i18n";
-import { formatBytes, getElement, showToast, state, type EmptyTrashResult, type Finding, type RegistryFixResult, type TrashResult } from "./state";
+import { formatBytes, getElement, showToast, state, type CacheCleanResult, type EmptyTrashResult, type Finding, type RegistryFixResult, type TrashResult } from "./state";
 import { renderFindings, updateSelectionBar } from "./results";
 
 const trashButton = getElement<HTMLButtonElement>("trash-button");
@@ -23,15 +23,27 @@ export function openConfirm(message: string, action: () => void): void {
 
 async function trashSelected(): Promise<void> {
   const selected = [...state.selectedPaths];
+  const cacheItems = state.findings.filter(
+    (item) =>
+      selected.includes(item.path) &&
+      (item.feature === "browser" || item.meta === "cache-dir")
+  );
   const registryItems = state.findings.filter(
     (item) => item.feature === "registry" && selected.includes(item.path)
   );
-  const filePaths = selected.filter((path) => !registryItems.some((item) => item.path === path));
+  const filePaths = selected.filter(
+    (path) =>
+      !cacheItems.some((item) => item.path === path) &&
+      !registryItems.some((item) => item.path === path)
+  );
   trashButton.disabled = true;
   trashButton.textContent = t("selection.moving");
   try {
     if (filePaths.length > 0) {
       await trashPaths(filePaths);
+    }
+    if (cacheItems.length > 0) {
+      await deleteCachePaths(cacheItems.map((item) => item.path));
     }
     if (registryItems.length > 0) {
       fixRegistryItems(registryItems);
@@ -39,6 +51,38 @@ async function trashSelected(): Promise<void> {
   } finally {
     trashButton.disabled = false;
     trashButton.textContent = t("selection.trash");
+  }
+}
+
+/// Browser caches are regenerable and can hold hundreds of thousands of
+/// files; they are permanently deleted in place instead of going through the
+/// OS trash, which is what previously exhausted memory on Windows.
+async function deleteCachePaths(paths: string[]): Promise<void> {
+  try {
+    const result = await invoke<CacheCleanResult>("delete_browser_caches", { paths });
+    const removedSet = new Set(result.removed);
+    const freed = state.findings
+      .filter((item) => (item.feature === "browser" || item.meta === "cache-dir") && removedSet.has(item.path))
+      .reduce((total, item) => total + item.size, 0);
+    state.findings = state.findings.filter(
+      (item) => !((item.feature === "browser" || item.meta === "cache-dir") && removedSet.has(item.path))
+    );
+    for (const path of result.removed) state.selectedPaths.delete(path);
+    renderFindings();
+    if (result.failed.length === 0) {
+      showToast(t("toast.cacheCleaned", {
+        count: number(result.removed.length),
+        size: formatBytes(freed),
+      }));
+    } else {
+      showToast(t("toast.cacheCleanedPartial", {
+        count: number(result.removed.length),
+        failed: number(result.failed.length),
+        error: result.failed[0].error,
+      }));
+    }
+  } catch (error) {
+    showToast(String(error));
   }
 }
 
@@ -100,6 +144,13 @@ async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
   }
   if (items.length === 0) return;
   const size = items.reduce((total, item) => total + item.size, 0);
+  if (feature === "browser") {
+    openConfirm(
+      t("card.cleanCacheConfirm", { count: number(items.length), size: formatBytes(size) }),
+      () => void deleteCachePaths(items.map((item) => item.path)),
+    );
+    return;
+  }
   openConfirm(
     t("card.cleanConfirm", { count: number(items.length), feature: t(`feature.${feature}`), size: formatBytes(size) }),
     () => void trashPaths(items.map((item) => item.path)),
@@ -131,10 +182,21 @@ export function initCleaning(): void {
   trashButton.addEventListener("click", () => {
     const selected = state.findings.filter((item) => state.selectedPaths.has(item.path));
     const size = selected.reduce((total, item) => total + item.size, 0);
+    const cacheItems = selected.filter((item) => item.feature === "browser" || item.meta === "cache-dir");
+    const cacheOnly = selected.length > 0 && cacheItems.length === selected.length;
     const registryOnly = selected.length > 0 && selected.every((item) => item.feature === "registry");
+    const hasCache = cacheItems.length > 0 && !cacheOnly;
     const message = registryOnly
       ? t("confirm.registryFix", { count: number(selected.length) })
-      : t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) });
+      : cacheOnly
+        ? t("card.cleanCacheConfirm", { count: number(cacheItems.length), size: formatBytes(size) })
+        : hasCache
+          ? t("confirm.trashAndCache", {
+              count: number(selected.length - cacheItems.length),
+              cacheCount: number(cacheItems.length),
+              cacheSize: formatBytes(cacheItems.reduce((total, item) => total + item.size, 0)),
+            })
+          : t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) });
     openConfirm(message, () => void trashSelected());
   });
   emptyTrashButton.addEventListener("click", () => {

@@ -147,6 +147,47 @@ struct RegistryFixResult {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct CacheCleanResult {
+    removed: Vec<String>,
+    failed: Vec<TrashFailure>,
+}
+
+/// Permanently removes browser cache directories through the browser
+/// scanner's purge guard. Caches are regenerable and can hold hundreds of
+/// thousands of files; routing them through the OS trash has exhausted
+/// system memory on Windows in the field.
+#[tauri::command]
+async fn delete_browser_caches(paths: Vec<String>) -> Result<CacheCleanResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut removed = Vec::new();
+        let mut failed = Vec::new();
+        for path in paths {
+            match rusty_cleaner::browser::purge(std::path::Path::new(&path)) {
+                Ok(()) => {
+                    rusty_cleaner::activity_log::record("browser-cache-clean", &path);
+                    removed.push(path);
+                }
+                Err(error) => {
+                    rusty_cleaner::activity_log::record(
+                        "browser-cache-clean-failed",
+                        &format!("{path} ({error})"),
+                    );
+                    failed.push(TrashFailure { path, error });
+                }
+            }
+        }
+        rusty_cleaner::activity_log::record(
+            "browser-cache-clean",
+            &format!("summary removed={} failed={}", removed.len(), failed.len()),
+        );
+        Ok(CacheCleanResult { removed, failed })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct AppView {
     name: String,
     path: String,
@@ -562,6 +603,7 @@ pub fn run() {
             scan_registry_issues,
             list_applications,
             uninstall_application,
+            delete_browser_caches,
             detect_theme,
             trash_candidates,
             fix_registry_issues,

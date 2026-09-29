@@ -216,7 +216,11 @@ fn walk_parallel(
     };
     let threads = std::thread::available_parallelism()
         .map(|count| count.get())
-        .unwrap_or(4);
+        .unwrap_or(4)
+        // Directory walking is syscall-bound and saturates well below the
+        // core counts of big machines; a cap keeps queue bursts — and the
+        // scan's memory high-water mark — proportional on 32-thread boxes.
+        .clamp(1, 8);
 
     std::thread::scope(|scope| {
         for _ in 0..threads {
@@ -373,6 +377,7 @@ fn is_excluded_dir(path: &Path) -> bool {
             | "Pods"
             | ".pub-cache"
             | ".composer"
+            | ".gem"
             | "node-gyp"
             | ".bun"
             | "deno"
@@ -423,6 +428,7 @@ mod tests {
             ".rustup",
             ".npm",
             ".pnpm-store",
+            ".gem",
             "flatpak",
             "snap",
             "site-packages",
