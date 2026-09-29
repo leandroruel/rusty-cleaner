@@ -6,7 +6,7 @@ import { initRegistry, refreshRegistryLabels } from "./registry";
 import { initApplications, refreshApplicationLabels } from "./applications";
 import { initPages, initAppVersion } from "./pages";
 import { initResults, renderFindings, updateSelectionBar, closeResults } from "./results";
-import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels } from "./cleaning";
+import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels, updateCleanProgress } from "./cleaning";
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
 import { initRestore, isRestoreOpen, closeRestore } from "./restore";
 import { initMonitor } from "./monitor";

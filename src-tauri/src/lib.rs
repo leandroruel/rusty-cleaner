@@ -152,16 +152,40 @@ struct CacheCleanResult {
     failed: Vec<TrashFailure>,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CleanProgress {
+    current: u32,
+    total: u32,
+}
+
+/// Reports cleaning progress to the frontend, throttled to ~1% steps so a
+/// hundred-thousand-item trash never becomes an IPC storm.
+fn emit_clean_progress(app: &tauri::AppHandle, current: u32, total: u32) {
+    use tauri::Emitter;
+    let _ = app.emit("clean-progress", CleanProgress { current, total });
+}
+
+fn clean_progress_step(total: u32) -> u32 {
+    (total / 100).max(1)
+}
+
 /// Permanently removes browser cache directories through the browser
 /// scanner's purge guard. Caches are regenerable and can hold hundreds of
 /// thousands of files; routing them through the OS trash has exhausted
 /// system memory on Windows in the field.
 #[tauri::command]
-async fn delete_browser_caches(paths: Vec<String>) -> Result<CacheCleanResult, String> {
+async fn delete_browser_caches(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<CacheCleanResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let total = paths.len() as u32;
+        let step = clean_progress_step(total);
         let mut removed = Vec::new();
         let mut failed = Vec::new();
-        for path in paths {
+        for (index, path) in paths.into_iter().enumerate() {
+            let current = (index + 1) as u32;
             match rusty_cleaner::browser::purge(std::path::Path::new(&path)) {
                 Ok(()) => {
                     rusty_cleaner::activity_log::record("browser-cache-clean", &path);
@@ -174,6 +198,9 @@ async fn delete_browser_caches(paths: Vec<String>) -> Result<CacheCleanResult, S
                     );
                     failed.push(TrashFailure { path, error });
                 }
+            }
+            if current % step == 0 {
+                emit_clean_progress(&app, current, total);
             }
         }
         rusty_cleaner::activity_log::record(
@@ -272,11 +299,23 @@ async fn uninstall_application(request: UninstallRequest) -> Result<(), String> 
 }
 
 #[tauri::command]
-async fn fix_registry_issues(items: Vec<RegistryFixItem>) -> Result<RegistryFixResult, String> {
+async fn fix_registry_issues(
+    app: tauri::AppHandle,
+    items: Vec<RegistryFixItem>,
+) -> Result<RegistryFixResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let total = items.len() as u32;
+        let step = clean_progress_step(total);
         let targets: Vec<(String, Option<String>)> = items
             .into_iter()
-            .map(|item| (item.key, item.value))
+            .enumerate()
+            .map(|(index, item)| {
+                let current = (index + 1) as u32;
+                if current % step == 0 {
+                    emit_clean_progress(&app, current, total);
+                }
+                (item.key, item.value)
+            })
             .collect();
         let outcome = rusty_cleaner::registry::fix(&targets);
         for (key, error) in &outcome.failed {
@@ -304,34 +343,43 @@ async fn fix_registry_issues(items: Vec<RegistryFixItem>) -> Result<RegistryFixR
 }
 
 #[tauri::command]
-async fn trash_candidates(paths: Vec<String>) -> Result<TrashResult, String> {
+async fn trash_candidates(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<TrashResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let total = paths.len() as u32;
+        let step = clean_progress_step(total);
         let mut trashed = Vec::new();
         let mut failed = Vec::new();
-        for path in paths {
+        for (index, path) in paths.into_iter().enumerate() {
+            let current = (index + 1) as u32;
             let path_buf = PathBuf::from(&path);
             if !path_buf.exists() {
                 failed.push(TrashFailure {
                     path,
                     error: "O arquivo não existe mais".to_owned(),
                 });
-                continue;
+            } else {
+                match trash::delete(&path_buf) {
+                    Ok(()) => {
+                        rusty_cleaner::activity_log::record("trash", &path);
+                        trashed.push(path);
+                    }
+                    Err(error) => {
+                        rusty_cleaner::activity_log::record(
+                            "trash-failed",
+                            &format!("{path} ({error})"),
+                        );
+                        failed.push(TrashFailure {
+                            path,
+                            error: error.to_string(),
+                        });
+                    }
+                }
             }
-            match trash::delete(&path_buf) {
-                Ok(()) => {
-                    rusty_cleaner::activity_log::record("trash", &path);
-                    trashed.push(path);
-                }
-                Err(error) => {
-                    rusty_cleaner::activity_log::record(
-                        "trash-failed",
-                        &format!("{path} ({error})"),
-                    );
-                    failed.push(TrashFailure {
-                        path,
-                        error: error.to_string(),
-                    });
-                }
+            if current % step == 0 {
+                emit_clean_progress(&app, current, total);
             }
         }
         Ok(TrashResult { trashed, failed })

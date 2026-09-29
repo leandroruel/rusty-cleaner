@@ -360,3 +360,12 @@ html[data-theme="omarchy"] .nav-item { border-radius:2px; }
 .applications-detail { min-height:18px; padding:0 2px; color:var(--text-faint); font:11px var(--font-mono); }
 .apps-panel .card-actions { flex:none; margin-top:auto; padding-top:14px; border-top:1px solid var(--border); }
 .apps-panel .card-actions .button { min-width:130px; }
+
+/* Clean progress overlay */
+.clean-progress-overlay { position:fixed; z-index:10; inset:0; display:grid; place-items:center; background:rgba(5,7,10,.72); }
+.clean-progress-overlay[hidden] { display:none; }
+.clean-progress-dialog { width:min(360px,calc(100vw - 40px)); padding:20px 22px; border:1px solid var(--border); border-radius:8px; background:var(--panel); box-shadow:0 18px 60px #000c; text-align:center; }
+.clean-progress-dialog h2 { margin:0 0 16px; font-size:14px; }
+.clean-progress-track { height:8px; overflow:hidden; border-radius:999px; background:#1c212c; }
+.clean-progress-fill { display:block; width:0%; height:100%; border-radius:999px; background:var(--cyan); box-shadow:0 0 10px rgba(51,224,255,.4); transition:width .25s ease; }
+.clean-progress-detail { margin:12px 0 0; color:var(--text-faint); font:11px var(--font-mono); }

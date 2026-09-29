@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { number, t } from "./i18n";
 import { formatBytes, getElement, showToast, state, type CacheCleanResult, type EmptyTrashResult, type Finding, type RegistryFixResult, type TrashResult } from "./state";
 import { renderFindings, updateSelectionBar } from "./results";
@@ -13,6 +14,28 @@ const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
 const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 
 let confirmAction: (() => void) | null = null;
+
+const cleanProgressOverlay = getElement<HTMLElement>("clean-progress-overlay");
+const cleanProgressFill = getElement<HTMLElement>("clean-progress-fill");
+const cleanProgressDetail = getElement<HTMLElement>("clean-progress-detail");
+
+function showCleanProgress(total: number): void {
+  if (total === 0) return;
+  cleanProgressFill.style.width = "0%";
+  cleanProgressDetail.textContent = t("clean.progressLabel", { current: number(0), total: number(total) });
+  cleanProgressOverlay.hidden = false;
+}
+
+export function updateCleanProgress(current: number, total: number): void {
+  if (cleanProgressOverlay.hidden) return;
+  const percent = total > 0 ? Math.min(100, (current / total) * 100) : 0;
+  cleanProgressFill.style.width = `${percent}%`;
+  cleanProgressDetail.textContent = t("clean.progressLabel", { current: number(current), total: number(total) });
+}
+
+function hideCleanProgress(): void {
+  cleanProgressOverlay.hidden = true;
+}
 
 export function openConfirm(message: string, action: () => void): void {
   confirmText.textContent = message;
@@ -58,6 +81,8 @@ async function trashSelected(): Promise<void> {
 /// files; they are permanently deleted in place instead of going through the
 /// OS trash, which is what previously exhausted memory on Windows.
 async function deleteCachePaths(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  showCleanProgress(paths.length);
   try {
     const result = await invoke<CacheCleanResult>("delete_browser_caches", { paths });
     const removedSet = new Set(result.removed);
@@ -68,6 +93,7 @@ async function deleteCachePaths(paths: string[]): Promise<void> {
       (item) => !((item.feature === "browser" || item.meta === "cache-dir") && removedSet.has(item.path))
     );
     for (const path of result.removed) state.selectedPaths.delete(path);
+    hideCleanProgress();
     renderFindings();
     if (result.failed.length === 0) {
       showToast(t("toast.cacheCleaned", {
@@ -82,12 +108,15 @@ async function deleteCachePaths(paths: string[]): Promise<void> {
       }));
     }
   } catch (error) {
+    hideCleanProgress();
     showToast(String(error));
   }
 }
 
 export function fixRegistryItems(items: Finding[]): void {
   const fixed = async () => {
+    if (items.length === 0) return;
+    showCleanProgress(items.length);
     try {
       const result = await invoke<RegistryFixResult>("fix_registry_issues", {
         items: items.map((item) => ({ key: item.path, value: item.meta ?? null })),
@@ -95,6 +124,7 @@ export function fixRegistryItems(items: Finding[]): void {
       const fixedSet = new Set(result.fixed);
       state.findings = state.findings.filter((item) => !fixedSet.has(item.path));
       for (const path of result.fixed) state.selectedPaths.delete(path);
+      hideCleanProgress();
       renderFindings();
       if (result.failed.length === 0) {
         showToast(t("toast.registryFixed", { count: number(result.fixed.length) }));
@@ -106,6 +136,7 @@ export function fixRegistryItems(items: Finding[]): void {
         }));
       }
     } catch (error) {
+      hideCleanProgress();
       showToast(String(error));
     }
   };
@@ -158,11 +189,14 @@ async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
 }
 
 async function trashPaths(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  showCleanProgress(paths.length);
   try {
     const result = await invoke<TrashResult>("trash_candidates", { paths });
     const trashedSet = new Set(result.trashed);
     state.findings = state.findings.filter((item) => !trashedSet.has(item.path));
     for (const path of result.trashed) state.selectedPaths.delete(path);
+    hideCleanProgress();
     renderFindings();
     if (result.failed.length === 0) {
       showToast(t("toast.trashed", { count: number(result.trashed.length) }));
@@ -174,6 +208,7 @@ async function trashPaths(paths: string[]): Promise<void> {
       }));
     }
   } catch (error) {
+    hideCleanProgress();
     showToast(String(error));
   }
 }
@@ -213,6 +248,12 @@ export function initCleaning(): void {
     confirmAction?.();
     confirmAction = null;
   });
+
+  if (isTauri()) {
+    void listen<{ current: number; total: number }>("clean-progress", (event) => {
+      updateCleanProgress(event.payload.current, event.payload.total);
+    });
+  }
 }
 
 export function isConfirmOpen(): boolean {
