@@ -223,7 +223,13 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n")
             .to_lowercase();
-        for marker in ["mozilla", "chrome", "chromium", "brave", "edge"] {
+        // macOS identifies Firefox by name rather than vendor; the other
+        // platforms use the "mozilla" directories.
+        #[cfg(target_os = "macos")]
+        let markers = ["firefox", "chrome", "chromium", "brave", "edge"];
+        #[cfg(not(target_os = "macos"))]
+        let markers = ["mozilla", "chrome", "chromium", "brave", "edge"];
+        for marker in markers {
             assert!(joined.contains(marker), "browser root missing: {marker}");
         }
     }

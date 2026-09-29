@@ -653,16 +653,16 @@ mod windows_impl {
     pub struct WinregReader;
 
     fn split_root(key: &str) -> Option<(HKEY, &str)> {
-        let (hive, rest) = if let Some(rest) = key.strip_prefix("HKEY_LOCAL_MACHINE") {
-            (HKEY_LOCAL_MACHINE, rest)
-        } else if let Some(rest) = key.strip_prefix("HKEY_CURRENT_USER") {
-            (HKEY_CURRENT_USER, rest)
-        } else if let Some(rest) = key.strip_prefix("HKEY_CLASSES_ROOT") {
-            (HKEY_CLASSES_ROOT, rest)
-        } else {
-            return None;
-        };
-        Some((hive, rest.trim_start_matches('\\')))
+        for (prefix, hive) in [
+            ("HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE),
+            ("HKEY_CURRENT_USER", HKEY_CURRENT_USER),
+            ("HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT),
+        ] {
+            if let Some(rest) = key.strip_prefix(prefix) {
+                return Some((hive, rest.trim_start_matches('\\')));
+            }
+        }
+        None
     }
 
     fn open(key: &str, perms: u32) -> Option<RegKey> {
