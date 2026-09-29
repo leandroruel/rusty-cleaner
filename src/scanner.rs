@@ -205,16 +205,24 @@ fn walk_parallel(
 
     let pair = (Mutex::new(shared), Condvar::new());
     let found: Mutex<Vec<(PathBuf, Metadata)>> = Mutex::new(Vec::new());
+    let config = WalkConfig {
+        lock: &pair.0,
+        wake: &pair.1,
+        found: &found,
+        max_depth,
+        user_excluded,
+        respect_dir_exclusions,
+        accept: accept as &(dyn Fn(&Path, &Metadata) -> bool + Sync),
+    };
     let threads = std::thread::available_parallelism()
         .map(|count| count.get())
         .unwrap_or(4);
 
     std::thread::scope(|scope| {
-        let (lock, wake) = &pair;
         for _ in 0..threads {
             scope.spawn(|| loop {
                 let (path, depth) = {
-                    let Ok(mut guard) = lock.lock() else {
+                    let Ok(mut guard) = config.lock.lock() else {
                         return;
                     };
                     loop {
@@ -222,7 +230,7 @@ fn walk_parallel(
                             Some(job) => break job,
                             None if guard.pending == 0 => return,
                             None => {
-                                let Ok(next) = wake.wait(guard) else {
+                                let Ok(next) = config.wake.wait(guard) else {
                                     return;
                                 };
                                 guard = next;
@@ -230,21 +238,11 @@ fn walk_parallel(
                         }
                     }
                 };
-                walk_directory(
-                    lock,
-                    wake,
-                    &found,
-                    &path,
-                    depth,
-                    max_depth,
-                    user_excluded,
-                    respect_dir_exclusions,
-                    accept,
-                );
-                if let Ok(mut guard) = lock.lock() {
+                walk_directory(&config, &path, depth);
+                if let Ok(mut guard) = config.lock.lock() {
                     guard.pending -= 1;
                     if guard.pending == 0 {
-                        wake.notify_all();
+                        config.wake.notify_all();
                     }
                 }
             });
@@ -254,19 +252,21 @@ fn walk_parallel(
     found.into_inner().unwrap()
 }
 
+/// Everything the walk workers share: the work queue, the accepted-files
+/// sink and the walk rules.
+struct WalkConfig<'a> {
+    lock: &'a Mutex<WalkerShared>,
+    wake: &'a Condvar,
+    found: &'a Mutex<Vec<(PathBuf, Metadata)>>,
+    max_depth: usize,
+    user_excluded: &'a [PathBuf],
+    respect_dir_exclusions: bool,
+    accept: &'a (dyn Fn(&Path, &Metadata) -> bool + Sync),
+}
+
 /// Processes one directory: accepted files are flushed to `found` in a single
 /// lock per directory, and subdirectories are enqueued for other workers.
-fn walk_directory(
-    lock: &Mutex<WalkerShared>,
-    wake: &Condvar,
-    found: &Mutex<Vec<(PathBuf, Metadata)>>,
-    path: &Path,
-    depth: usize,
-    max_depth: usize,
-    user_excluded: &[PathBuf],
-    respect_dir_exclusions: bool,
-    accept: &(impl Fn(&Path, &Metadata) -> bool + Sync),
-) {
+fn walk_directory(config: &WalkConfig<'_>, path: &Path, depth: usize) {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return;
     };
@@ -274,18 +274,23 @@ fn walk_directory(
         return;
     }
     if metadata.is_file() {
-        if accept(path, &metadata) {
-            found.lock().unwrap().push((path.to_path_buf(), metadata));
+        if (config.accept)(path, &metadata) {
+            config
+                .found
+                .lock()
+                .unwrap()
+                .push((path.to_path_buf(), metadata));
         }
         return;
     }
-    if !metadata.is_dir() || depth >= max_depth {
+    if !metadata.is_dir() || depth >= config.max_depth {
         return;
     }
-    if respect_dir_exclusions && depth > 0 && is_excluded_dir(path) {
+    if config.respect_dir_exclusions && depth > 0 && is_excluded_dir(path) {
         return;
     }
-    if user_excluded
+    if config
+        .user_excluded
         .iter()
         .any(|excluded| path.starts_with(excluded))
     {
@@ -309,7 +314,7 @@ fn walk_directory(
             continue;
         }
         if child_metadata.is_file() {
-            if accept(&child_path, &child_metadata) {
+            if (config.accept)(&child_path, &child_metadata) {
                 accepted.push((child_path, child_metadata));
             }
         } else if child_metadata.is_dir() {
@@ -317,13 +322,13 @@ fn walk_directory(
         }
     }
     if !accepted.is_empty() {
-        found.lock().unwrap().extend(accepted);
+        config.found.lock().unwrap().extend(accepted);
     }
     if !subdirs.is_empty() {
-        if let Ok(mut guard) = lock.lock() {
+        if let Ok(mut guard) = config.lock.lock() {
             guard.pending += subdirs.len();
             guard.queue.append(&mut subdirs);
-            wake.notify_all();
+            config.wake.notify_all();
         }
     }
 }
