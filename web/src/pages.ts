@@ -1,5 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getElement } from "./state";
 
 const navItems = Array.from(document.querySelectorAll<HTMLButtonElement>(".nav-item[data-page]"));
@@ -41,6 +41,28 @@ export function initPages(): void {
     if (page === "settings") return;
     item.addEventListener("click", () => showPage(page));
   });
+  hideRegistryOutsideWindows();
+}
+
+/// The registry is a Windows-only feature; its page and results filter stay
+/// hidden everywhere else.
+function hideRegistryOutsideWindows(): void {
+  const hide = () => {
+    document
+      .querySelectorAll<HTMLElement>('.nav-item[data-page="registry"], #feature-filter option[value="registry"]')
+      .forEach((element) => element.setAttribute("hidden", ""));
+  };
+  if (!isTauri()) {
+    hide();
+    return;
+  }
+  invoke<string>("detect_platform")
+    .then((platform) => {
+      if (platform !== "windows") hide();
+    })
+    .catch(() => {
+      // Without a platform answer, keep the entry visible.
+    });
 }
 
 export function initAppVersion(): void {

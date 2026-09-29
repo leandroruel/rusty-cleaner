@@ -161,6 +161,89 @@ fn purge_unchecked(path: &Path) -> Result<(), String> {
     }
 }
 
+/// Browsers keep cache files locked while running; a clean can only fully
+/// succeed after they are closed. Process names cover the different
+/// packaging layouts per distribution.
+const BROWSERS: &[(&str, &[&str])] = &[
+    ("Chrome", &["chrome"]),
+    ("Chromium", &["chromium"]),
+    ("Brave", &["brave", "brave-browser"]),
+    ("Edge", &["msedge"]),
+    ("Firefox", &["firefox"]),
+];
+
+/// One browser that was (or was not) asked to quit.
+pub struct ClosedBrowser {
+    pub name: String,
+    pub was_running: bool,
+}
+
+/// Gracefully asks every running browser to quit — SIGTERM on Linux, WM_CLOSE
+/// via taskkill on Windows, an AppleScript quit on macOS — so no session is
+/// lost and cache locks are released before a clean.
+pub fn quit_running_browsers() -> Vec<ClosedBrowser> {
+    BROWSERS
+        .iter()
+        .map(|(name, processes)| ClosedBrowser {
+            name: (*name).to_owned(),
+            was_running: processes.iter().any(|process| quit_process(process)),
+        })
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn quit_process(process: &str) -> bool {
+    // SIGTERM lets browsers shut down cleanly, saving their sessions. An exit
+    // code of 1 means the process is not running.
+    std::process::Command::new("pkill")
+        .arg("-x")
+        .arg(process)
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(windows)]
+fn quit_process(process: &str) -> bool {
+    // taskkill without /F posts WM_CLOSE — a graceful close, not a kill.
+    let image = format!("{process}.exe");
+    std::process::Command::new("taskkill")
+        .args(["/IM", &image])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
+fn quit_process(process: &str) -> bool {
+    // osascript fails when the application is not running, which doubles as
+    // the "was running" answer.
+    let app = match process {
+        "chrome" => "Google Chrome",
+        "msedge" => "Microsoft Edge",
+        "brave" | "brave-browser" => "Brave Browser",
+        other => other,
+    };
+    let script = format!("tell application \"{app}\" to quit");
+    std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod browser_quit_tests {
+    use super::quit_running_browsers;
+
+    #[test]
+    fn reports_every_known_browser_without_panicking() {
+        let closed = quit_running_browsers();
+        assert_eq!(closed.len(), 5);
+        assert!(closed.iter().all(|browser| !browser.name.is_empty()));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{discover, is_safe_to_purge, purge_unchecked};

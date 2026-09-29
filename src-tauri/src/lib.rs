@@ -143,6 +143,7 @@ struct RegistryFixItem {
 struct RegistryFixResult {
     fixed: Vec<String>,
     failed: Vec<TrashFailure>,
+    backup_path: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -211,6 +212,126 @@ async fn delete_browser_caches(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(windows)]
+fn backup_registry_keys(keys: &[String]) -> Result<String, String> {
+    use std::collections::BTreeSet;
+    use std::process::Command;
+
+    let started = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|age| age.as_secs())
+        .unwrap_or(0);
+    let base = rusty_cleaner::activity_log::data_dir()
+        .ok_or("backup folder unavailable")?
+        .join("rusty-cleaner")
+        .join("registry-backups")
+        .join(format!("backup-{started}"));
+    std::fs::create_dir_all(&base).map_err(|error| error.to_string())?;
+
+    let unique: BTreeSet<&String> = keys.iter().collect();
+    let mut manifest = String::new();
+    for (index, key) in unique.iter().enumerate() {
+        let file = base.join(format!("{index:02}.reg"));
+        let output = Command::new("reg")
+            .arg("export")
+            .arg(key)
+            .arg(&file)
+            .arg("/y")
+            .output()
+            .map_err(|error| format!("failed to launch reg.exe: {error}"))?;
+        if !output.status.success() {
+            return Err(format!("registry backup failed for {key}"));
+        }
+        manifest.push_str(&format!("{index:02}.reg\t{key}\n"));
+    }
+    std::fs::write(base.join("keys.txt"), manifest).map_err(|error| error.to_string())?;
+    Ok(base.to_string_lossy().into_owned())
+}
+
+#[cfg(windows)]
+fn create_restore_point() -> Result<(), String> {
+    use std::process::Command;
+
+    // Both lifting the once-per-24h restore-point throttle and creating the
+    // checkpoint need elevation; a single UAC prompt covers them.
+    let inner = r"$ErrorActionPreference = 'Stop'; Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord; Checkpoint-Computer -Description 'Rusty Cleaner registry fix' -RestorePointType MODIFY_SETTINGS; exit 0";
+    let encoded = base64_utf16(inner);
+    let outer = format!(
+        "try {{ $p = Start-Process -Verb RunAs -Wait -PassThru -FilePath powershell.exe \
+-ArgumentList @('-NoProfile','-EncodedCommand','{encoded}'); exit $p.ExitCode }} catch {{ exit 2 }}"
+    );
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-Command", &outer])
+        .output()
+        .map_err(|error| format!("failed to launch powershell: {error}"))?;
+    match output.status.code() {
+        Some(0) => Ok(()),
+        Some(2) => {
+            Err("the restore point needs elevation and the UAC prompt was declined".to_owned())
+        }
+        _ => {
+            Err("system restore point could not be created (is System Restore enabled?)".to_owned())
+        }
+    }
+}
+
+/// PowerShell's -EncodedCommand expects UTF-16LE bytes in standard base64.
+#[cfg(any(windows, test))]
+fn base64_utf16(text: &str) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let bytes: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    let mut encoded = String::new();
+    for chunk in bytes.chunks(3) {
+        let triple = [
+            chunk[0],
+            chunk.get(1).copied().unwrap_or(0),
+            chunk.get(2).copied().unwrap_or(0),
+        ];
+        let bits =
+            (u32::from(triple[0]) << 16) | (u32::from(triple[1]) << 8) | u32::from(triple[2]);
+        encoded.push(ALPHABET[(bits >> 18 & 63) as usize] as char);
+        encoded.push(ALPHABET[(bits >> 12 & 63) as usize] as char);
+        encoded.push(if chunk.len() > 1 {
+            ALPHABET[(bits >> 6 & 63) as usize] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            ALPHABET[(bits & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    encoded
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClosedBrowserView {
+    name: String,
+    was_running: bool,
+}
+
+#[tauri::command]
+async fn close_browsers() -> Result<Vec<ClosedBrowserView>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        Ok(rusty_cleaner::browser::quit_running_browsers()
+            .into_iter()
+            .map(|browser| ClosedBrowserView {
+                name: browser.name,
+                was_running: browser.was_running,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+fn detect_platform() -> &'static str {
+    current_platform()
 }
 
 #[derive(Serialize)]
@@ -317,6 +438,19 @@ async fn fix_registry_issues(
                 (item.key, item.value)
             })
             .collect();
+        // Mandatory safety net: every key about to be modified is exported
+        // to a .reg backup and a system restore point is taken — the fix
+        // refuses to run when either step fails.
+        #[cfg(windows)]
+        let backup_path = {
+            let keys: Vec<String> = targets.iter().map(|(key, _)| key.clone()).collect();
+            let backup_dir = backup_registry_keys(&keys)?;
+            create_restore_point()?;
+            Some(backup_dir)
+        };
+        #[cfg(not(windows))]
+        let backup_path = None;
+
         let outcome = rusty_cleaner::registry::fix(&targets);
         for (key, error) in &outcome.failed {
             rusty_cleaner::activity_log::record("registry-fix-failed", &format!("{key} ({error})"));
@@ -324,9 +458,10 @@ async fn fix_registry_issues(
         rusty_cleaner::activity_log::record(
             "registry-fix",
             &format!(
-                "fixed={} failed={}",
+                "fixed={} failed={} backup={}",
                 outcome.fixed.len(),
-                outcome.failed.len()
+                outcome.failed.len(),
+                backup_path.is_some()
             ),
         );
         Ok(RegistryFixResult {
@@ -336,6 +471,7 @@ async fn fix_registry_issues(
                 .into_iter()
                 .map(|(key, error)| TrashFailure { path: key, error })
                 .collect(),
+            backup_path,
         })
     })
     .await
@@ -652,6 +788,8 @@ pub fn run() {
             list_applications,
             uninstall_application,
             delete_browser_caches,
+            close_browsers,
+            detect_platform,
             detect_theme,
             trash_candidates,
             fix_registry_issues,
@@ -675,6 +813,14 @@ pub fn run() {
 mod tests {
     use super::has_omarchy_marker;
     use std::{fs, path::PathBuf, time::SystemTime};
+
+    #[test]
+    fn encodes_powershell_commands_as_utf16_base64() {
+        // "ABC" in UTF-16LE is 41 00 42 00 43 00, which base64s to QQBCAEMA.
+        assert_eq!(super::base64_utf16("ABC"), "QQBCAEMA");
+        assert_eq!(super::base64_utf16(""), "");
+        assert_eq!(super::base64_utf16("A"), "QQA=");
+    }
 
     #[test]
     fn detects_an_omarchy_marker_without_using_the_arch_distro_id() {

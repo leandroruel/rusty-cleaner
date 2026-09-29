@@ -38,6 +38,7 @@ export type EmptyTrashResult = {
 export type RegistryFixResult = {
   fixed: string[];
   failed: { path: string; error: string }[];
+  backupPath: string | null;
 };
 
 export type CacheCleanResult = {

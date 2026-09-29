@@ -12,8 +12,12 @@ const confirmOverlay = getElement<HTMLElement>("confirm-overlay");
 const confirmText = getElement<HTMLParagraphElement>("confirm-text");
 const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
 const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
+const confirmExtra = getElement<HTMLButtonElement>("confirm-extra");
 
 let confirmAction: (() => void) | null = null;
+let extraAction: (() => void) | null = null;
+
+export type ConfirmExtra = { label: string; action: () => void };
 
 const cleanProgressOverlay = getElement<HTMLElement>("clean-progress-overlay");
 const cleanProgressFill = getElement<HTMLElement>("clean-progress-fill");
@@ -37,12 +41,43 @@ function hideCleanProgress(): void {
   cleanProgressOverlay.hidden = true;
 }
 
-export function openConfirm(message: string, action: () => void): void {
+export function openConfirm(
+  message: string,
+  action: () => void,
+  extra?: ConfirmExtra,
+): void {
   confirmText.textContent = message;
   confirmAction = action;
+  if (extra) {
+    confirmExtra.textContent = extra.label;
+    confirmExtra.hidden = false;
+    extraAction = extra.action;
+  } else {
+    confirmExtra.hidden = true;
+    extraAction = null;
+  }
   confirmOverlay.hidden = false;
   confirmCancel.focus();
 }
+
+/// Gracefully quits every running browser so cache locks are released
+/// before a clean.
+async function closeBrowsers(): Promise<void> {
+  try {
+    const closed = await invoke<{ name: string; wasRunning: boolean }[]>("close_browsers");
+    const running = closed.filter((browser) => browser.wasRunning).map((browser) => browser.name);
+    showToast(running.length === 0
+      ? t("toast.noBrowsersRunning")
+      : t("toast.browsersClosed", { list: running.join(", ") }));
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
+const closeBrowsersExtra = (): ConfirmExtra => ({
+  label: t("card.closeBrowsers"),
+  action: () => void closeBrowsers(),
+});
 
 async function trashSelected(): Promise<void> {
   const selected = [...state.selectedPaths];
@@ -127,7 +162,9 @@ export function fixRegistryItems(items: Finding[]): void {
       hideCleanProgress();
       renderFindings();
       if (result.failed.length === 0) {
-        showToast(t("toast.registryFixed", { count: number(result.fixed.length) }));
+        showToast(result.backupPath
+          ? t("toast.registryFixedBackup", { count: number(result.fixed.length), path: result.backupPath })
+          : t("toast.registryFixed", { count: number(result.fixed.length) }));
       } else {
         showToast(t("toast.registryFixedPartial", {
           fixed: number(result.fixed.length),
@@ -179,6 +216,7 @@ async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
     openConfirm(
       t("card.cleanCacheConfirm", { count: number(items.length), size: formatBytes(size) }),
       () => void deleteCachePaths(items.map((item) => item.path)),
+      closeBrowsersExtra(),
     );
     return;
   }
@@ -232,21 +270,32 @@ export function initCleaning(): void {
               cacheSize: formatBytes(cacheItems.reduce((total, item) => total + item.size, 0)),
             })
           : t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) });
-    openConfirm(message, () => void trashSelected());
+    const extra = cacheItems.length > 0 ? closeBrowsersExtra() : undefined;
+    openConfirm(message, () => void trashSelected(), extra);
   });
   emptyTrashButton.addEventListener("click", () => {
     openConfirm(t("confirm.emptyTrash"), () => void emptyTrash());
   });
   cleanBrowserButton.addEventListener("click", () => void cleanCategory("browser"));
   cleanMessengerButton.addEventListener("click", () => void cleanCategory("chat-media"));
-  confirmCancel.addEventListener("click", () => { confirmOverlay.hidden = true; });
+  const dismissConfirm = () => {
+    confirmOverlay.hidden = true;
+    confirmAction = null;
+    confirmExtra.hidden = true;
+    extraAction = null;
+  };
+  confirmCancel.addEventListener("click", dismissConfirm);
   confirmOverlay.addEventListener("click", (event) => {
-    if (event.target === confirmOverlay) confirmOverlay.hidden = true;
+    if (event.target === confirmOverlay) dismissConfirm();
   });
+  confirmExtra.addEventListener("click", () => extraAction?.());
   confirmAccept.addEventListener("click", () => {
     confirmOverlay.hidden = true;
-    confirmAction?.();
+    confirmExtra.hidden = true;
+    const action = confirmAction;
     confirmAction = null;
+    extraAction = null;
+    action?.();
   });
 
   if (isTauri()) {
@@ -262,6 +311,9 @@ export function isConfirmOpen(): boolean {
 
 export function closeConfirm(): void {
   confirmOverlay.hidden = true;
+  confirmAction = null;
+  confirmExtra.hidden = true;
+  extraAction = null;
 }
 
 export function refreshCleaningLabels(): void {

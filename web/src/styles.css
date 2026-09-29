@@ -369,3 +369,5 @@ html[data-theme="omarchy"] .nav-item { border-radius:2px; }
 .clean-progress-track { height:8px; overflow:hidden; border-radius:999px; background:#1c212c; }
 .clean-progress-fill { display:block; width:0%; height:100%; border-radius:999px; background:var(--cyan); box-shadow:0 0 10px rgba(51,224,255,.4); transition:width .25s ease; }
 .clean-progress-detail { margin:12px 0 0; color:var(--text-faint); font:11px var(--font-mono); }
+
+#feature-filter option[hidden] { display:none; }
