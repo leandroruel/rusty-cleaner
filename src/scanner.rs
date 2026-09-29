@@ -32,6 +32,7 @@ pub enum Feature {
     Browser,
     Duplicates,
     LargeOld,
+    Registry,
 }
 
 impl Feature {
@@ -44,6 +45,7 @@ impl Feature {
             "browser" => Some(Self::Browser),
             "duplicates" => Some(Self::Duplicates),
             "large-old" => Some(Self::LargeOld),
+            "registry" => Some(Self::Registry),
             _ => None,
         }
     }
@@ -59,6 +61,7 @@ impl std::fmt::Display for Feature {
             Self::Browser => "browser",
             Self::Duplicates => "duplicates",
             Self::LargeOld => "large-old",
+            Self::Registry => "registry",
         };
         f.write_str(label)
     }
@@ -80,6 +83,9 @@ pub struct Finding {
     pub path: PathBuf,
     pub size: u64,
     pub modified: Option<SystemTime>,
+    /// Feature-specific extra data. For registry findings, the registry value
+    /// name to remove (`None` means the whole key must be removed).
+    pub meta: Option<String>,
 }
 
 pub fn walk_files(
@@ -256,6 +262,7 @@ pub fn finding(feature: Feature, path: PathBuf) -> Finding {
         size: metadata.as_ref().map_or(0, Metadata::len),
         modified: metadata.and_then(|item| item.modified().ok()),
         path,
+        meta: None,
     }
 }
 

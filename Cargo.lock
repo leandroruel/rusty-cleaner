@@ -2858,6 +2858,9 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 [[package]]
 name = "rusty-cleaner"
 version = "0.1.0"
+dependencies = [
+ "winreg",
+]
 
 [[package]]
 name = "rusty-cleaner-desktop"

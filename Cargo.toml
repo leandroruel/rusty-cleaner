@@ -15,3 +15,6 @@ name = "rusty-cleaner"
 path = "src/main.rs"
 
 [dependencies]
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"

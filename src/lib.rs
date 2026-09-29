@@ -5,6 +5,7 @@ pub mod duplicates;
 pub mod large_old;
 pub mod orphan;
 pub mod platform;
+pub mod registry;
 pub mod scanner;
 pub mod settings;
 pub mod temp;
@@ -57,6 +58,10 @@ pub fn scanners() -> Vec<Box<dyn Scanner>> {
         Box::new(FnScanner {
             feature: Feature::Duplicates,
             scan_fn: duplicates::scan,
+        }),
+        Box::new(FnScanner {
+            feature: Feature::Registry,
+            scan_fn: registry::scan,
         }),
     ]
 }

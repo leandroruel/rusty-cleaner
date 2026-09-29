@@ -13,6 +13,7 @@ struct FindingView {
     path: String,
     size: u64,
     age_days: Option<u64>,
+    meta: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -64,6 +65,50 @@ async fn scan_candidates(
 }
 
 #[tauri::command]
+async fn scan_registry_issues(
+    app: tauri::AppHandle,
+    rules: Vec<String>,
+) -> Result<ScanResult, String> {
+    use tauri::Emitter;
+
+    let selected: Vec<rusty_cleaner::registry::Rule> = rules
+        .iter()
+        .map(|value| {
+            rusty_cleaner::registry::Rule::parse(value)
+                .ok_or_else(|| format!("Unsupported registry rule: {value}"))
+        })
+        .collect::<Result<_, _>>()?;
+    let started = Instant::now();
+    rusty_cleaner::scanner::set_progress_callback(Some(Box::new(move |path| {
+        let _ = app.emit("scan-progress", path.to_string_lossy().into_owned());
+    })));
+    let rule_count = selected.len();
+    let findings = tauri::async_runtime::spawn_blocking(move || {
+        rusty_cleaner::registry::scan_rules(&selected)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    rusty_cleaner::scanner::set_progress_callback(None);
+    let elapsed_ms = started.elapsed().as_millis();
+
+    rusty_cleaner::activity_log::record(
+        "scan",
+        &format!(
+            "feature=registry rules={} items={} elapsed_ms={}",
+            rule_count,
+            findings.len(),
+            elapsed_ms
+        ),
+    );
+
+    Ok(ScanResult {
+        findings: findings.into_iter().map(to_view).collect(),
+        elapsed_ms,
+        platform: current_platform(),
+    })
+}
+
+#[tauri::command]
 fn detect_theme() -> &'static str {
     if cfg!(target_os = "linux") && has_omarchy_marker(omarchy_marker_paths()) {
         "omarchy"
@@ -84,6 +129,52 @@ struct TrashFailure {
 struct TrashResult {
     trashed: Vec<String>,
     failed: Vec<TrashFailure>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistryFixItem {
+    key: String,
+    value: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistryFixResult {
+    fixed: Vec<String>,
+    failed: Vec<TrashFailure>,
+}
+
+#[tauri::command]
+async fn fix_registry_issues(items: Vec<RegistryFixItem>) -> Result<RegistryFixResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let targets: Vec<(String, Option<String>)> = items
+            .into_iter()
+            .map(|item| (item.key, item.value))
+            .collect();
+        let outcome = rusty_cleaner::registry::fix(&targets);
+        for (key, error) in &outcome.failed {
+            rusty_cleaner::activity_log::record("registry-fix-failed", &format!("{key} ({error})"));
+        }
+        rusty_cleaner::activity_log::record(
+            "registry-fix",
+            &format!(
+                "fixed={} failed={}",
+                outcome.fixed.len(),
+                outcome.failed.len()
+            ),
+        );
+        Ok(RegistryFixResult {
+            fixed: outcome.fixed,
+            failed: outcome
+                .failed
+                .into_iter()
+                .map(|(key, error)| TrashFailure { path: key, error })
+                .collect(),
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -329,6 +420,7 @@ fn to_view(finding: Finding) -> FindingView {
             .modified
             .and_then(|modified| modified.elapsed().ok())
             .map(|age| age.as_secs() / 86_400),
+        meta: finding.meta,
     }
 }
 
@@ -382,8 +474,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             scan_candidates,
+            scan_registry_issues,
             detect_theme,
             trash_candidates,
+            fix_registry_issues,
             empty_trash,
             list_trash_items,
             restore_trash_items,

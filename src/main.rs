@@ -45,5 +45,5 @@ fn main() {
 }
 
 fn print_help() {
-    println!("CleanOS Pro - scanner somente leitura\n\nUso:\n  rusty-cleaner scan [--feature NOME]\n\nFeatures: orphan, temp, chat-media, trash, browser, duplicates, large-old\nNenhum arquivo e apagado por este prototipo.");
+    println!("CleanOS Pro - scanner somente leitura\n\nUso:\n  rusty-cleaner scan [--feature NOME]\n\nFeatures: orphan, temp, chat-media, trash, browser, duplicates, large-old, registry\nO recurso registry exige Windows. Nenhum arquivo e apagado por este prototipo.");
 }
