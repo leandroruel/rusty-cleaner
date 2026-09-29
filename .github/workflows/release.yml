@@ -126,7 +126,9 @@ jobs:
 
           platforms = {}
           mapping = {
-              "linux-x86_64": (".AppImage.tar.gz", ".AppImage.tar.gz.sig"),
+              # Tauri v2 signs the AppImage in place; macOS ships an .app
+              # tarball and Windows the NSIS setup binary.
+              "linux-x86_64": (".AppImage", ".AppImage.sig"),
               "darwin-x86_64": (".app.tar.gz", ".app.tar.gz.sig"),
               "windows-x86_64": ("-setup.exe", "-setup.exe.sig"),
           }
