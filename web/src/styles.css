@@ -176,9 +176,9 @@ button.messenger-row:hover .messenger-name { color:var(--text); }
 .fill-cpu { background:var(--cyan); }
 .fill-memory { background:var(--pink); }
 .fill-disk { background:var(--green); }
-.results-panel { position:absolute; z-index:3; inset:0; display:flex; min-height:0; flex-direction:column; overflow:hidden; box-shadow:0 18px 60px #000a; }
-.results-panel[hidden] { display:none; }
+.results-panel { display:flex; min-height:0; flex-direction:column; overflow:hidden; }
 .results-heading { display:flex; align-items:center; justify-content:space-between; flex:none; gap:14px; padding:12px 16px; }
+.results-back { flex:none; }
 .results-heading h2 { font-size:14px; }
 .results-controls { display:flex; align-items:center; gap:10px; }
 .filter-control { display:flex; align-items:center; gap:8px; color:var(--text-faint); font-size:10px; }
@@ -343,5 +343,20 @@ html[data-theme="omarchy"] .nav-item { border-radius:2px; }
 .registry-actions .button { min-width:150px; }
 
 /* Applications page */
-.applications-panel { display:flex; flex-direction:column; gap:10px; padding:16px; }
-.applications-placeholder { margin:0; color:var(--text-faint); font-size:12px; }
+/* Applications page */
+.apps-panel { display:flex; min-height:0; flex-direction:column; gap:14px; padding:18px 20px; }
+.apps-panel .panel-heading { padding-bottom:14px; border-bottom:1px solid var(--border); }
+.apps-list { display:flex; min-height:0; flex:1; flex-direction:column; overflow:auto; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); scrollbar-width:thin; }
+.apps-list:empty::after { padding:23px 14px; color:var(--text-faint); content:"—"; }
+.app-row { display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 10px; border-bottom:1px solid var(--border); }
+.app-row:last-child { border-bottom:0; }
+.app-glyph { display:grid; width:34px; height:34px; flex:none; place-items:center; border:1px solid rgba(51,224,255,.28); border-radius:7px; background:rgba(51,224,255,.07); color:var(--cyan); font:700 14px var(--font-mono); }
+.app-info { display:flex; min-width:0; flex:1; flex-direction:column; gap:3px; }
+.app-name { overflow:hidden; color:var(--text); font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.app-path { overflow:hidden; color:var(--text-faint); font:9px var(--font-mono); text-overflow:ellipsis; white-space:nowrap; }
+.app-last-used { flex:none; width:120px; overflow:hidden; color:var(--text-dim); font:10px var(--font-mono); text-overflow:ellipsis; white-space:nowrap; }
+.app-size { flex:none; width:80px; text-align:right; color:var(--text); font:700 11px var(--font-mono); }
+.app-uninstall { flex:none; min-height:26px; padding:4px 10px; font-size:10px; }
+.applications-detail { min-height:18px; padding:0 2px; color:var(--text-faint); font:11px var(--font-mono); }
+.apps-panel .card-actions { flex:none; margin-top:auto; padding-top:14px; border-top:1px solid var(--border); }
+.apps-panel .card-actions .button { min-width:130px; }

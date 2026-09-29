@@ -5,7 +5,15 @@ import { getElement } from "./state";
 const navItems = Array.from(document.querySelectorAll<HTMLButtonElement>(".nav-item[data-page]"));
 const pages = Array.from(document.querySelectorAll<HTMLElement>(".page[data-page]"));
 
+let activePageId = "overview";
+let resultsOrigin = "overview";
+
 export function showPage(pageId: string): void {
+  // The results page is reachable only through buttons, never the sidebar;
+  // remember where it was opened from so the back arrow returns there.
+  if (pageId === "results" && activePageId !== "results") {
+    resultsOrigin = activePageId;
+  }
   for (const item of navItems) {
     const selected = item.dataset.page === pageId;
     item.classList.toggle("is-active", selected);
@@ -14,6 +22,17 @@ export function showPage(pageId: string): void {
   for (const page of pages) {
     page.hidden = page.dataset.page !== pageId;
   }
+  activePageId = pageId;
+}
+
+/// Leaves the results page, returning to wherever it was opened from.
+export function returnFromResults(): string {
+  showPage(resultsOrigin);
+  return resultsOrigin;
+}
+
+export function isPageActive(pageId: string): boolean {
+  return activePageId === pageId;
 }
 
 export function initPages(): void {

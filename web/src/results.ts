@@ -1,8 +1,8 @@
 import { featureColors, featureLabels, formatBytes, formatCount, getElement, state, type Finding } from "./state";
 import { t } from "./i18n";
+import { isPageActive, returnFromResults, showPage } from "./pages";
 
 const filterSelect = getElement<HTMLSelectElement>("feature-filter");
-const resultsPanel = getElement<HTMLElement>("results-panel");
 const closeResultsButton = getElement<HTMLButtonElement>("close-results");
 const selectAll = getElement<HTMLInputElement>("select-all");
 const selectionBar = getElement<HTMLElement>("selection-bar");
@@ -154,13 +154,17 @@ export function openResults(feature = state.activeFilter): void {
   state.activeFilter = feature;
   filterSelect.value = feature;
   renderFindings();
-  resultsPanel.hidden = false;
+  showPage("results");
   closeResultsButton.focus();
 }
 
 export function closeResults(): void {
-  resultsPanel.hidden = true;
-  getElement<HTMLButtonElement>("results-button").focus();
+  // Escape reaches this handler from any page; only act on the results page.
+  if (!isPageActive("results")) return;
+  const origin = returnFromResults();
+  if (origin === "overview") {
+    getElement<HTMLButtonElement>("results-button").focus();
+  }
 }
 
 export function initResults(): void {
