@@ -409,8 +409,18 @@ pub fn classify_exec(exec: &str) -> Option<ExecTarget> {
 
 pub fn find_in_path(program: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
+    // Windows executables live behind extensions; probe the common ones.
+    #[cfg(windows)]
+    let names = [
+        program.to_owned(),
+        format!("{program}.exe"),
+        format!("{program}.com"),
+        format!("{program}.bat"),
+    ];
+    #[cfg(not(windows))]
+    let names = [program.to_owned()];
     std::env::split_paths(&path)
-        .map(|dir| dir.join(program))
+        .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
         .find(|candidate| candidate.is_file())
 }
 
