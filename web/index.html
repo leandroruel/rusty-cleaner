@@ -8,12 +8,44 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="titlebar">
-        <div class="brand-lockup">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
           <img class="brand-icon" src="/app-icon.png" alt="" aria-hidden="true" />
           <span class="app-name"><strong>Rusty</strong> Cleaner</span>
         </div>
-        <div class="title-actions">
+
+        <nav class="sidebar-nav" aria-label="Main navigation">
+          <button class="nav-item is-active" type="button" data-page="overview" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7M5.5 9V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 21v-6h5v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="nav.overview">Overview</span>
+          </button>
+          <button class="nav-item" type="button" data-page="registry">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
+            <span data-i18n="nav.registry">Registry</span>
+          </button>
+          <button class="nav-item" type="button" data-page="browsers">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 12h17" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="12" rx="4" ry="8.5" stroke="currentColor" stroke-width="1.6"/></svg>
+            <span data-i18n="nav.browsers">Browsers</span>
+          </button>
+          <button class="nav-item" type="button" data-page="trash">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="nav.trash">Trash</span>
+          </button>
+          <button class="nav-item" type="button" data-page="chat-media">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22 2 11 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2 15 22l-4-9-9-4Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="nav.messengers">Messenger Media</span>
+          </button>
+          <button class="nav-item" type="button" data-page="applications" disabled data-i18n-title="applications.comingSoon" title="Coming soon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M7 17h10M12 13.5v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span data-i18n="nav.applications">Applications</span>
+          </button>
+          <button class="nav-item" type="button" data-page="settings" id="settings-button" data-i18n-aria="settings.open" aria-label="Open settings">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.23.6.86 1 1.55 1H21a2 2 0 1 1 0 4h-.09c-.69 0-1.32.4-1.51 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+            <span data-i18n="nav.settings">Settings</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
           <button class="update-badge hidden" id="update-badge" type="button" title="Update available">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span id="update-badge-label">Update</span>
@@ -22,53 +54,85 @@
             <span class="status-dot"></span>
             <span id="status-label" data-i18n="app.ready">Ready to scan</span>
           </div>
-          <button class="icon-button" id="settings-button" type="button" data-i18n-aria="settings.open" aria-label="Open settings" title="Settings">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.23.6.86 1 1.55 1H21a2 2 0 1 1 0 4h-.09c-.69 0-1.32.4-1.51 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          </button>
+          <span class="app-version" id="app-version">v0.1.0</span>
         </div>
-      </header>
+      </aside>
 
-      <main>
-        <section class="dashboard-grid" aria-label="Cleanup summary">
-          <section class="panel scan-panel" aria-labelledby="scan-title">
-            <div class="panel-heading scan-heading">
-              <div>
-                <p class="eyebrow" data-i18n="scan.eyebrow">SYSTEM ANALYSIS</p>
-                <h1 id="scan-title" data-i18n="scan.title">Find space to reclaim</h1>
+      <div class="app-main">
+        <main>
+          <section class="page is-active" data-page="overview" aria-label="Overview">
+            <section class="panel scan-panel" aria-labelledby="scan-title">
+              <div class="panel-heading scan-heading">
+                <div>
+                  <p class="eyebrow" data-i18n="scan.eyebrow">SYSTEM ANALYSIS</p>
+                  <h1 id="scan-title" data-i18n="scan.title">Find space to reclaim</h1>
+                  <p class="scan-subtitle" data-i18n="scan.subtitle">Rusty Cleaner will scan your system and show you what can be safely removed.</p>
+                </div>
+                <span class="read-only-badge" data-i18n="scan.readonly">READ-ONLY</span>
               </div>
-              <span class="read-only-badge" data-i18n="scan.readonly">READ-ONLY</span>
-            </div>
 
-            <div class="scan-visual" id="scan-visual">
-              <div class="scan-ring" aria-hidden="true"></div>
-              <div class="scan-ring-inner">
-                <strong id="total-size">0 B</strong>
-                <span data-i18n="scan.found">found</span>
+              <div class="scan-visual" id="scan-visual">
+                <div class="scan-ring" aria-hidden="true"></div>
+                <div class="scan-ring-inner">
+                  <strong id="total-size">0 B</strong>
+                  <span data-i18n="scan.found">found</span>
+                </div>
               </div>
-            </div>
-            <p class="scan-caption" id="scan-caption" data-i18n="scan.none">No scans this session</p>
+              <p class="scan-caption" id="scan-caption" data-i18n="scan.none">No scans this session</p>
 
-            <div class="scan-progress" id="scan-progress" hidden>
-              <span class="scan-progress-path" id="scan-progress-path"></span>
-              <span class="scan-progress-time" id="scan-progress-time">0,0s</span>
-            </div>
+              <div class="scan-progress" id="scan-progress" hidden>
+                <span class="scan-progress-path" id="scan-progress-path"></span>
+                <span class="scan-progress-time" id="scan-progress-time">0,0s</span>
+              </div>
 
-            <div class="category-breakdown" id="category-breakdown" aria-live="polite">
-              <p class="empty-breakdown" data-i18n="scan.empty">Results will appear here after the scan.</p>
-            </div>
+              <div class="scan-actions">
+                <button class="button button-quiet scan-toggle" id="scan-button" type="button">
+                  <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5-9-5.5Z" fill="currentColor"/></svg>
+                  <svg class="icon-stop" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
+                  <span id="scan-button-label" data-i18n="scan.start">Start scan</span>
+                </button>
+                <button class="button button-primary" id="results-button" type="button" disabled data-i18n="scan.results">View results</button>
+              </div>
+            </section>
 
-            <div class="scan-actions">
-              <button class="button button-quiet scan-toggle" id="scan-button" type="button">
-                <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5-9-5.5Z" fill="currentColor"/></svg>
-                <svg class="icon-stop" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
-                <span id="scan-button-label" data-i18n="scan.start">Start scan</span>
+            <section class="failed-scans" id="failed-scans" hidden>
+              <button class="failed-toggle" id="failed-toggle" type="button" aria-expanded="false">
+                <span class="failed-icon" aria-hidden="true">⚠</span>
+                <span id="failed-summary"></span>
+                <span class="failed-chevron" aria-hidden="true">▾</span>
               </button>
-              <button class="button button-primary" id="results-button" type="button" disabled data-i18n="scan.results">View results</button>
-            </div>
+              <div class="failed-table-wrap" id="failed-table-wrap" hidden>
+                <table>
+                  <thead><tr><th scope="col" data-i18n="table.file">FILE</th><th scope="col" data-i18n="failed.date">SCAN DATE</th><th scope="col" data-i18n="failed.error">ERROR</th></tr></thead>
+                  <tbody id="failed-body"></tbody>
+                </table>
+              </div>
+            </section>
           </section>
 
-          <div class="summary-column">
-            <section class="panel summary-panel" aria-labelledby="browser-title">
+          <section class="page" data-page="registry" aria-label="Registry" hidden>
+            <section class="panel registry-panel" aria-labelledby="registry-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="registry-title" data-i18n="registry.title">Registry</h2>
+                  <p class="panel-subtitle" data-i18n="registry.subtitle">Windows Registry issues found by the selected cleaning rules</p>
+                </div>
+                <strong class="summary-size" id="registry-size">—</strong>
+              </div>
+              <div class="registry-rules" id="registry-rules"></div>
+              <div class="registry-detail" id="registry-detail" data-i18n="registry.waiting">Choose the rules and scan for issues</div>
+              <div class="card-actions">
+                <button class="text-button" type="button" data-filter="registry"><span data-i18n="card.review">Review</span> <span aria-hidden="true">→</span></button>
+                <div class="registry-actions">
+                  <button class="button button-quiet" id="registry-scan-button" type="button" data-i18n="registry.scan">Scan for issues</button>
+                  <button class="button button-outline-danger" id="registry-fix-button" type="button" disabled data-i18n="registry.fix">Fix selected issues</button>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section class="page" data-page="browsers" aria-label="Browsers" hidden>
+            <section class="panel browsers-panel" aria-labelledby="browser-title">
               <div class="panel-heading">
                 <div>
                   <h2 id="browser-title" data-i18n="card.browsers">Browsers</h2>
@@ -76,29 +140,42 @@
                 </div>
                 <strong class="summary-size" id="browser-size">0 B</strong>
               </div>
-              <div class="summary-detail" id="browser-detail" data-i18n="card.waiting">Waiting for scan</div>
-              <div class="browser-chips" id="browser-chips"></div>
+              <div class="browsers-body">
+                <div class="summary-detail" id="browser-detail" data-i18n="card.waiting">Waiting for scan</div>
+                <div class="browser-chips" id="browser-chips"></div>
+              </div>
               <div class="card-actions">
                 <button class="text-button" type="button" data-filter="browser"><span data-i18n="card.review">Review</span> <span aria-hidden="true">→</span></button>
                 <button class="button button-quiet card-clean" id="clean-browser-button" type="button" disabled data-i18n="card.clean">Clean</button>
               </div>
             </section>
+          </section>
 
+          <section class="page" data-page="trash" aria-label="Trash" hidden>
             <section class="panel trash-panel" aria-labelledby="trash-title">
-              <div class="trash-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div class="panel-heading">
+                <div>
+                  <h2 id="trash-title" data-i18n="card.trash">Trash</h2>
+                  <p class="panel-subtitle" data-i18n="card.trashSub">Items detected in the system trash</p>
+                </div>
               </div>
-              <div class="trash-copy">
-                <h2 id="trash-title" data-i18n="card.trash">Trash</h2>
+              <div class="trash-body">
+                <div class="trash-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
                 <p id="trash-detail" data-i18n="card.waiting">Waiting for scan</p>
               </div>
-              <div class="trash-actions">
-                <button class="text-button" type="button" data-filter="trash" data-i18n="card.review">Review</button>
-                <button class="text-button" id="restore-trash-button" type="button" data-i18n="card.restore">Restore</button>
-                <button class="button button-outline-danger" id="empty-trash-button" type="button" disabled data-i18n="card.empty">Empty</button>
+              <div class="card-actions">
+                <button class="text-button" type="button" data-filter="trash"><span data-i18n="card.review">Review</span> <span aria-hidden="true">→</span></button>
+                <div class="trash-actions">
+                  <button class="button button-quiet" id="restore-trash-button" type="button" data-i18n="card.restore">Restore</button>
+                  <button class="button button-outline-danger" id="empty-trash-button" type="button" disabled data-i18n="card.empty">Empty</button>
+                </div>
               </div>
             </section>
+          </section>
 
+          <section class="page" data-page="chat-media" aria-label="Messenger media" hidden>
             <section class="panel messenger-panel" aria-labelledby="messenger-title">
               <div class="panel-heading">
                 <div>
@@ -149,96 +226,115 @@
                 <button class="button button-quiet card-clean" id="clean-messenger-button" type="button" disabled data-i18n="card.clean">Clean</button>
               </div>
             </section>
-          </div>
-        </section>
+          </section>
 
-        <section class="monitor-bar" aria-label="Scan and system summary">
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.items">ITEMS FOUND</span><strong id="item-count">0</strong></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.space">SPACE LISTED</span><strong id="space-count">0 B</strong></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.cpu">CPU</span><strong id="cpu-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-cpu" id="cpu-bar"></span></div></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.memory">MEMORY</span><strong id="memory-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-memory" id="memory-bar"></span></div></div>
-          <div class="monitor-item"><span class="monitor-label" data-i18n="monitor.disk">DISK</span><strong id="disk-count">—</strong><div class="monitor-track"><span class="monitor-fill fill-disk" id="disk-bar"></span></div></div>
-        </section>
+          <section class="page" data-page="applications" aria-label="Applications" hidden>
+            <section class="panel applications-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2 data-i18n="applications.title">Applications</h2>
+                  <p class="panel-subtitle" data-i18n="applications.subtitle">Uninstall programs directly from Rusty Cleaner</p>
+                </div>
+              </div>
+              <p class="applications-placeholder" data-i18n="applications.placeholder">Coming soon. This section will let you review and uninstall installed programs.</p>
+            </section>
+          </section>
 
-        <section class="failed-scans" id="failed-scans" hidden>
-          <button class="failed-toggle" id="failed-toggle" type="button" aria-expanded="false">
-            <span class="failed-icon" aria-hidden="true">⚠</span>
-            <span id="failed-summary"></span>
-            <span class="failed-chevron" aria-hidden="true">▾</span>
-          </button>
-          <div class="failed-table-wrap" id="failed-table-wrap" hidden>
-            <table>
-              <thead><tr><th scope="col" data-i18n="table.file">FILE</th><th scope="col" data-i18n="failed.date">SCAN DATE</th><th scope="col" data-i18n="failed.error">ERROR</th></tr></thead>
-              <tbody id="failed-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel results-panel" id="results-panel" aria-labelledby="results-title" aria-label="Scan results" hidden>
-          <div class="results-heading">
-            <div>
-              <p class="eyebrow" data-i18n="results.eyebrow">REVIEW</p>
-              <h2 id="results-title" data-i18n="results.title">Found items</h2>
+          <section class="monitor-bar" aria-label="System monitor">
+            <div class="monitor-item">
+              <span class="monitor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M9 1.8v2.4M15 1.8v2.4M9 19.8v2.4M15 19.8v2.4M1.8 9h2.4M1.8 15h2.4M19.8 9h2.4M19.8 15h2.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+              <div class="monitor-body">
+                <span class="monitor-label" data-i18n="monitor.cpu">CPU</span>
+                <strong id="cpu-count">—</strong>
+                <div class="monitor-track"><span class="monitor-fill fill-cpu" id="cpu-bar"></span></div>
+              </div>
             </div>
-            <div class="results-controls">
-              <label class="filter-control search-control">
-                <span data-i18n="results.search">Search</span>
-                <input type="search" id="search-input" data-i18n-placeholder="results.searchPlaceholder" placeholder="Name or path..." data-i18n-aria="results.search" aria-label="Search results" />
-              </label>
-              <label class="filter-control">
-                <span data-i18n="results.sort">Sort</span>
-                <select id="sort-select" data-i18n-aria="results.sort" aria-label="Sort results">
-                  <option value="size-desc" data-i18n="results.sortSizeDesc">Largest size</option>
-                  <option value="size-asc" data-i18n="results.sortSizeAsc">Smallest size</option>
-                  <option value="age-desc" data-i18n="results.sortAgeDesc">Oldest</option>
-                  <option value="age-asc" data-i18n="results.sortAgeAsc">Newest</option>
-                  <option value="name-asc" data-i18n="results.sortName">Name (A–Z)</option>
-                </select>
-              </label>
-              <label class="filter-control">
-                <span data-i18n="results.category">Category</span>
-                <select id="feature-filter" data-i18n-aria="results.category" aria-label="Filter by category">
-                  <option value="all" data-i18n="results.all">All</option>
-                  <option value="orphan" data-i18n="feature.orphan">Old app data</option>
-                  <option value="temp" data-i18n="feature.temp">Temporary</option>
-                  <option value="chat-media" data-i18n="feature.chat-media">Messenger media</option>
-                  <option value="trash" data-i18n="feature.trash">Trash</option>
-                  <option value="browser" data-i18n="feature.browser">Browsers</option>
-                  <option value="duplicates" data-i18n="feature.duplicates">Duplicates</option>
-                  <option value="large-old" data-i18n="feature.large-old">Large & old</option>
-                </select>
-              </label>
-              <button class="text-button" id="select-category-button" type="button" data-i18n="results.selectCategory">Select category</button>
-              <button class="button button-quiet close-results" id="close-results" type="button" data-i18n="results.back">Back to dashboard</button>
+            <div class="monitor-item">
+              <span class="monitor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="7" width="19" height="10" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M6 10v4M9.5 10v4M13 10v4M16.5 10v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+              <div class="monitor-body">
+                <span class="monitor-label" data-i18n="monitor.memory">MEMORY</span>
+                <strong id="memory-count">—</strong>
+                <div class="monitor-track"><span class="monitor-fill fill-memory" id="memory-bar"></span></div>
+              </div>
             </div>
-          </div>
-          <div class="results-table-wrap">
-            <table>
-              <thead><tr><th scope="col" class="select-col"><input type="checkbox" id="select-all" data-i18n-aria="results.selectAll" aria-label="Select all visible items" /></th><th scope="col" data-i18n="table.file">FILE</th><th scope="col" data-i18n="table.category">CATEGORY</th><th scope="col" data-i18n="table.size">SIZE</th><th scope="col" data-i18n="table.modified">MODIFIED</th></tr></thead>
-              <tbody id="results-body"><tr><td colspan="5" class="table-empty" data-i18n="results.empty">Start a scan to review candidates. No files will be deleted.</td></tr></tbody>
-            </table>
-          </div>
-          <div class="results-footer" id="results-footer" hidden>
-            <span id="results-footer-text"></span>
-          </div>
-          <div class="selection-bar" id="selection-bar" hidden>
-            <span id="selection-summary"></span>
-            <button class="button button-danger" id="trash-button" type="button" data-i18n="selection.trash">Move to trash</button>
-          </div>
-        </section>
+            <div class="monitor-item">
+              <span class="monitor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6"/></svg></span>
+              <div class="monitor-body">
+                <span class="monitor-label" data-i18n="monitor.disk">DISK</span>
+                <strong id="disk-count">—</strong>
+                <div class="monitor-track"><span class="monitor-fill fill-disk" id="disk-bar"></span></div>
+              </div>
+            </div>
+          </section>
 
-        <div class="confirm-overlay" id="confirm-overlay" hidden>
-          <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
-            <h2 id="confirm-title" data-i18n="confirm.trashTitle">Move to trash?</h2>
-            <p id="confirm-text"></p>
-            <p class="confirm-note" data-i18n="confirm.note">Files will be sent to the system trash and can be restored from there.</p>
-            <div class="confirm-actions">
-              <button class="button button-quiet" id="confirm-cancel" type="button" data-i18n="confirm.cancel">Cancel</button>
-              <button class="button button-danger" id="confirm-accept" type="button" data-i18n="confirm.accept">Move to trash</button>
+          <section class="panel results-panel" id="results-panel" aria-labelledby="results-title" aria-label="Scan results" hidden>
+            <div class="results-heading">
+              <div>
+                <p class="eyebrow" data-i18n="results.eyebrow">REVIEW</p>
+                <h2 id="results-title" data-i18n="results.title">Found items</h2>
+              </div>
+              <div class="results-controls">
+                <label class="filter-control search-control">
+                  <span data-i18n="results.search">Search</span>
+                  <input type="search" id="search-input" data-i18n-placeholder="results.searchPlaceholder" placeholder="Name or path..." data-i18n-aria="results.search" aria-label="Search results" />
+                </label>
+                <label class="filter-control">
+                  <span data-i18n="results.sort">Sort</span>
+                  <select id="sort-select" data-i18n-aria="results.sort" aria-label="Sort results">
+                    <option value="size-desc" data-i18n="results.sortSizeDesc">Largest size</option>
+                    <option value="size-asc" data-i18n="results.sortSizeAsc">Smallest size</option>
+                    <option value="age-desc" data-i18n="results.sortAgeDesc">Oldest</option>
+                    <option value="age-asc" data-i18n="results.sortAgeAsc">Newest</option>
+                    <option value="name-asc" data-i18n="results.sortName">Name (A–Z)</option>
+                  </select>
+                </label>
+                <label class="filter-control">
+                  <span data-i18n="results.category">Category</span>
+                  <select id="feature-filter" data-i18n-aria="results.category" aria-label="Filter by category">
+                    <option value="all" data-i18n="results.all">All</option>
+                    <option value="orphan" data-i18n="feature.orphan">Old app data</option>
+                    <option value="temp" data-i18n="feature.temp">Temporary</option>
+                    <option value="chat-media" data-i18n="feature.chat-media">Messenger media</option>
+                    <option value="trash" data-i18n="feature.trash">Trash</option>
+                    <option value="browser" data-i18n="feature.browser">Browsers</option>
+                    <option value="duplicates" data-i18n="feature.duplicates">Duplicates</option>
+                    <option value="large-old" data-i18n="feature.large-old">Large & old</option>
+                    <option value="registry" data-i18n="feature.registry">Registry issues</option>
+                  </select>
+                </label>
+                <button class="text-button" id="select-category-button" type="button" data-i18n="results.selectCategory">Select category</button>
+                <button class="button button-quiet close-results" id="close-results" type="button" data-i18n="results.back">Back to dashboard</button>
+              </div>
+            </div>
+            <div class="results-table-wrap">
+              <table>
+                <thead><tr><th scope="col" class="select-col"><input type="checkbox" id="select-all" data-i18n-aria="results.selectAll" aria-label="Select all visible items" /></th><th scope="col" data-i18n="table.file">FILE</th><th scope="col" data-i18n="table.category">CATEGORY</th><th scope="col" data-i18n="table.size">SIZE</th><th scope="col" data-i18n="table.modified">MODIFIED</th></tr></thead>
+                <tbody id="results-body"><tr><td colspan="5" class="table-empty" data-i18n="results.empty">Start a scan to review candidates. No files will be deleted.</td></tr></tbody>
+              </table>
+            </div>
+            <div class="results-footer" id="results-footer" hidden>
+              <span id="results-footer-text"></span>
+            </div>
+            <div class="selection-bar" id="selection-bar" hidden>
+              <span id="selection-summary"></span>
+              <button class="button button-danger" id="trash-button" type="button" data-i18n="selection.trash">Move to trash</button>
+            </div>
+          </section>
+
+          <div class="confirm-overlay" id="confirm-overlay" hidden>
+            <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+              <h2 id="confirm-title" data-i18n="confirm.trashTitle">Move to trash?</h2>
+              <p id="confirm-text"></p>
+              <p class="confirm-note" data-i18n="confirm.note">Files will be sent to the system trash and can be restored from there.</p>
+              <div class="confirm-actions">
+                <button class="button button-quiet" id="confirm-cancel" type="button" data-i18n="confirm.cancel">Cancel</button>
+                <button class="button button-danger" id="confirm-accept" type="button" data-i18n="confirm.accept">Move to trash</button>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
+
       <div class="settings-overlay" id="restore-overlay" hidden>
         <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="restore-title">
           <div class="settings-head">

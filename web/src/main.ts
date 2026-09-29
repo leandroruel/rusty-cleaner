@@ -2,6 +2,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { loadLocale, t } from "./i18n";
 import { getElement, state } from "./state";
 import { initScan } from "./scan";
+import { initRegistry, refreshRegistryLabels } from "./registry";
+import { initPages, initAppVersion } from "./pages";
 import { initResults, renderFindings, updateSelectionBar, closeResults } from "./results";
 import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels } from "./cleaning";
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
@@ -47,6 +49,9 @@ function applyTranslations(): void {
   document.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => {
     el.setAttribute("aria-label", t(el.dataset.i18nAria!));
   });
+  document.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
+    el.setAttribute("title", t(el.dataset.i18nTitle!));
+  });
   getElement<HTMLSpanElement>("scan-button-label").textContent = state.scanning
     ? t("scan.stop")
     : (state.findings.length > 0 ? t("scan.again") : t("scan.start"));
@@ -56,11 +61,15 @@ function applyTranslations(): void {
 loadLocale();
 applyTranslations();
 void applySystemTheme();
+initPages();
+initAppVersion();
 initScan();
 initResults();
 initCleaning();
+initRegistry();
 initSettings(() => {
   applyTranslations();
+  refreshRegistryLabels();
   renderFindings();
   updateSelectionBar();
 });

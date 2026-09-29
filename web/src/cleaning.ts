@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { number, t } from "./i18n";
-import { formatBytes, getElement, showToast, state, type EmptyTrashResult, type TrashResult } from "./state";
+import { formatBytes, getElement, showToast, state, type EmptyTrashResult, type Finding, type RegistryFixResult, type TrashResult } from "./state";
 import { renderFindings, updateSelectionBar } from "./results";
 
 const trashButton = getElement<HTMLButtonElement>("trash-button");
@@ -14,7 +14,7 @@ const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 
 let confirmAction: (() => void) | null = null;
 
-function openConfirm(message: string, action: () => void): void {
+export function openConfirm(message: string, action: () => void): void {
   confirmText.textContent = message;
   confirmAction = action;
   confirmOverlay.hidden = false;
@@ -22,30 +22,50 @@ function openConfirm(message: string, action: () => void): void {
 }
 
 async function trashSelected(): Promise<void> {
-  const paths = [...state.selectedPaths];
+  const selected = [...state.selectedPaths];
+  const registryItems = state.findings.filter(
+    (item) => item.feature === "registry" && selected.includes(item.path)
+  );
+  const filePaths = selected.filter((path) => !registryItems.some((item) => item.path === path));
   trashButton.disabled = true;
   trashButton.textContent = t("selection.moving");
   try {
-    const result = await invoke<TrashResult>("trash_candidates", { paths });
-    const trashedSet = new Set(result.trashed);
-    state.findings = state.findings.filter((item) => !trashedSet.has(item.path));
-    for (const path of result.trashed) state.selectedPaths.delete(path);
-    renderFindings();
-    if (result.failed.length === 0) {
-      showToast(t("toast.trashed", { count: number(result.trashed.length) }));
-    } else {
-      showToast(t("toast.trashedPartial", {
-        moved: number(result.trashed.length),
-        failed: number(result.failed.length),
-        error: result.failed[0].error,
-      }));
+    if (filePaths.length > 0) {
+      await trashPaths(filePaths);
     }
-  } catch (error) {
-    showToast(String(error));
+    if (registryItems.length > 0) {
+      fixRegistryItems(registryItems);
+    }
   } finally {
     trashButton.disabled = false;
     trashButton.textContent = t("selection.trash");
   }
+}
+
+export function fixRegistryItems(items: Finding[]): void {
+  const fixed = async () => {
+    try {
+      const result = await invoke<RegistryFixResult>("fix_registry_issues", {
+        items: items.map((item) => ({ key: item.path, value: item.meta ?? null })),
+      });
+      const fixedSet = new Set(result.fixed);
+      state.findings = state.findings.filter((item) => !fixedSet.has(item.path));
+      for (const path of result.fixed) state.selectedPaths.delete(path);
+      renderFindings();
+      if (result.failed.length === 0) {
+        showToast(t("toast.registryFixed", { count: number(result.fixed.length) }));
+      } else {
+        showToast(t("toast.registryFixedPartial", {
+          fixed: number(result.fixed.length),
+          failed: number(result.failed.length),
+          error: result.failed[0].error,
+        }));
+      }
+    } catch (error) {
+      showToast(String(error));
+    }
+  };
+  void fixed();
 }
 
 async function emptyTrash(): Promise<void> {
@@ -109,11 +129,13 @@ async function trashPaths(paths: string[]): Promise<void> {
 
 export function initCleaning(): void {
   trashButton.addEventListener("click", () => {
-    const size = state.findings.filter((item) => state.selectedPaths.has(item.path)).reduce((total, item) => total + item.size, 0);
-    openConfirm(
-      t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) }),
-      () => void trashSelected(),
-    );
+    const selected = state.findings.filter((item) => state.selectedPaths.has(item.path));
+    const size = selected.reduce((total, item) => total + item.size, 0);
+    const registryOnly = selected.length > 0 && selected.every((item) => item.feature === "registry");
+    const message = registryOnly
+      ? t("confirm.registryFix", { count: number(selected.length) })
+      : t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) });
+    openConfirm(message, () => void trashSelected());
   });
   emptyTrashButton.addEventListener("click", () => {
     openConfirm(t("confirm.emptyTrash"), () => void emptyTrash());

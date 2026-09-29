@@ -2,7 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
-import { openResults, renderFindings } from "./results";
+import { renderFindings } from "./results";
 
 const scanOrder: FeatureKey[] = ["trash", "temp", "browser", "chat-media", "orphan", "large-old", "duplicates"];
 
@@ -72,7 +72,7 @@ export async function runScan(): Promise<void> {
         const result = await invoke<ScanResult>("scan_candidates", { feature });
         platform = result.platform;
         state.findings.push(...result.findings);
-        renderSummary({ findings: state.findings, elapsedMs: performance.now() - started, platform });
+        renderSummary();
       } catch (error) {
         failed += 1;
         failedScans.push({
@@ -106,7 +106,7 @@ export async function runScan(): Promise<void> {
   }
 }
 
-function renderSummary(result: ScanResult): void {
+function renderSummary(): void {
   const totalSize = state.findings.reduce((total, item) => total + item.size, 0);
   const counts = new Map<FeatureKey, { count: number; size: number }>();
   const messengerCounts = { telegram: 0, discord: 0, whatsapp: 0, signal: 0, slack: 0, element: 0 };
@@ -127,33 +127,6 @@ function renderSummary(result: ScanResult): void {
   }
 
   getElement("total-size").textContent = formatBytes(totalSize);
-  getElement("item-count").textContent = formatCount(state.findings.length);
-  getElement("space-count").textContent = formatBytes(totalSize);
-  getElement("category-count").textContent = `${counts.size} / 7`;
-  getElement("duration-count").textContent = `${(result.elapsedMs / 1000).toFixed(1).replace(".", ",")}s`;
-
-  const breakdown = getElement("category-breakdown");
-  breakdown.replaceChildren();
-  const topFeatures = [...counts.entries()].sort((left, right) => right[1].size - left[1].size).slice(0, 3);
-  if (topFeatures.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty-breakdown";
-    empty.textContent = t("scan.noneFound");
-    breakdown.append(empty);
-  } else {
-    for (const [feature, data] of topFeatures) {
-      const row = document.createElement("button");
-      row.className = "found-row";
-      row.type = "button";
-      row.dataset.filter = feature;
-      row.innerHTML = `<span class="found-label"><i></i></span><span class="found-value"></span>`;
-      row.querySelector<HTMLElement>(".found-label")!.style.setProperty("--swatch", `var(--${feature === "chat-media" ? "pink" : feature === "large-old" ? "blue" : feature === "temp" ? "cyan" : feature === "trash" ? "red" : feature === "browser" ? "amber" : feature === "duplicates" ? "green" : "purple"})`);
-      row.querySelector<HTMLElement>(".found-label")!.append(document.createTextNode(t(`feature.${feature}`)));
-      row.querySelector<HTMLElement>(".found-value")!.textContent = formatBytes(data.size);
-      row.addEventListener("click", () => openResults(feature));
-      breakdown.append(row);
-    }
-  }
 
   const browser = counts.get("browser") ?? { count: 0, size: 0 };
   getElement("browser-size").textContent = formatBytes(browser.size);

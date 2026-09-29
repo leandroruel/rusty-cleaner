@@ -1,6 +1,14 @@
 import { getLocale, number, t } from "./i18n";
 
-export type FeatureKey = "orphan" | "temp" | "chat-media" | "trash" | "browser" | "duplicates" | "large-old";
+export type FeatureKey =
+  | "orphan"
+  | "temp"
+  | "chat-media"
+  | "trash"
+  | "browser"
+  | "duplicates"
+  | "large-old"
+  | "registry";
 
 export type Finding = {
   feature: FeatureKey;
@@ -8,6 +16,7 @@ export type Finding = {
   path: string;
   size: number;
   ageDays: number | null;
+  meta: string | null;
 };
 
 export type ScanResult = {
@@ -26,6 +35,11 @@ export type EmptyTrashResult = {
   failed: number;
 };
 
+export type RegistryFixResult = {
+  fixed: string[];
+  failed: { path: string; error: string }[];
+};
+
 export type SystemMetrics = {
   cpuPercent: number;
   memoryUsed: number;
@@ -34,7 +48,16 @@ export type SystemMetrics = {
   diskTotal: number;
 };
 
-export const featureKeys: FeatureKey[] = ["orphan", "temp", "chat-media", "trash", "browser", "duplicates", "large-old"];
+export const featureKeys: FeatureKey[] = [
+  "orphan",
+  "temp",
+  "chat-media",
+  "trash",
+  "browser",
+  "duplicates",
+  "large-old",
+  "registry",
+];
 
 export function featureLabels(): Record<FeatureKey, string> {
   return Object.fromEntries(featureKeys.map((key) => [key, t(`feature.${key}`)])) as Record<FeatureKey, string>;
@@ -48,6 +71,7 @@ export const featureColors: Record<FeatureKey, string> = {
   browser: "var(--amber)",
   duplicates: "var(--green)",
   "large-old": "var(--blue)",
+  registry: "var(--orange)",
 };
 
 export const state = {
