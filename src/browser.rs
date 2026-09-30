@@ -166,7 +166,9 @@ fn purge_unchecked(path: &Path) -> Result<(), String> {
 
 /// Browsers keep cache files locked while running; a clean can only fully
 /// succeed after they are closed. Process names cover the different
-/// packaging layouts per distribution.
+/// packaging layouts per distribution. Only exact names are targeted —
+/// Rusty Cleaner's own WebView2 runtime (`msedgewebview2.exe`) never
+/// matches any of them.
 const BROWSERS: &[(&str, &[&str])] = &[
     ("Chrome", &["chrome"]),
     ("Chromium", &["chromium"]),
@@ -175,52 +177,93 @@ const BROWSERS: &[(&str, &[&str])] = &[
     ("Firefox", &["firefox"]),
 ];
 
+/// Grace period between the graceful close and force termination: browsers
+/// need a moment to flush and exit; extension and background processes
+/// outlive the last window and keep cache files locked.
+#[cfg(any(target_os = "linux", windows))]
+const QUIT_GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// One browser that was (or was not) asked to quit.
 pub struct ClosedBrowser {
     pub name: String,
     pub was_running: bool,
 }
 
-/// Gracefully asks every running browser to quit — SIGTERM on Linux, WM_CLOSE
-/// via taskkill on Windows, an AppleScript quit on macOS — so no session is
-/// lost and cache locks are released before a clean.
+/// Asks every running browser to quit — SIGTERM on Linux, WM_CLOSE via
+/// taskkill on Windows, an AppleScript quit on macOS — waits for the
+/// processes to exit, and force-terminates stragglers. Without the final
+/// step, extension and background processes keep cache files locked and
+/// the clean finds nothing it can delete.
 pub fn quit_running_browsers() -> Vec<ClosedBrowser> {
-    BROWSERS
-        .iter()
-        .map(|(name, processes)| ClosedBrowser {
-            name: (*name).to_owned(),
-            was_running: processes.iter().any(|process| quit_process(process)),
-        })
-        .collect()
+    crate::parallel::parallel_map(BROWSERS.to_vec(), |(name, processes)| ClosedBrowser {
+        name: name.to_owned(),
+        was_running: processes.iter().any(|process| quit_process(process)),
+    })
 }
 
 #[cfg(target_os = "linux")]
 fn quit_process(process: &str) -> bool {
-    // SIGTERM lets browsers shut down cleanly, saving their sessions. An exit
-    // code of 1 means the process is not running.
-    std::process::Command::new("pkill")
-        .arg("-x")
-        .arg(process)
+    // SIGTERM lets browsers shut down cleanly, saving their sessions. An
+    // exit code of 1 means the process is not running.
+    let graceful = std::process::Command::new("pkill")
+        .args(["-x", process])
         .status()
         .map(|status| status.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    let mut was_running = graceful;
+    if graceful {
+        std::thread::sleep(QUIT_GRACE);
+        // Kill whatever is still holding cache files open.
+        was_running |= std::process::Command::new("pkill")
+            .args(["-9", "-x", process])
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false);
+    }
+    // WSL runs next to Windows browsers, whose processes are only reachable
+    // through the Windows taskkill interop.
+    if crate::platform::is_wsl() {
+        was_running |= windows_quit(process);
+    }
+    was_running
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn windows_quit(process: &str) -> bool {
+    // taskkill without /F posts WM_CLOSE — graceful, but it only reaches
+    // processes with windows. The /F /T pass terminates the whole process
+    // tree left behind by background and extension processes.
+    #[cfg(windows)]
+    let program = "taskkill";
+    #[cfg(target_os = "linux")]
+    let program = "/mnt/c/Windows/System32/taskkill.exe";
+    let image = format!("{process}.exe");
+    let graceful = std::process::Command::new(program)
+        .args(["/IM", &image])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+    let mut was_running = graceful;
+    if graceful {
+        std::thread::sleep(QUIT_GRACE);
+        was_running |= std::process::Command::new(program)
+            .args(["/F", "/T", "/IM", &image])
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false);
+    }
+    was_running
 }
 
 #[cfg(windows)]
 fn quit_process(process: &str) -> bool {
-    // taskkill without /F posts WM_CLOSE — a graceful close, not a kill.
-    let image = format!("{process}.exe");
-    std::process::Command::new("taskkill")
-        .args(["/IM", &image])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    windows_quit(process)
 }
 
 #[cfg(target_os = "macos")]
 fn quit_process(process: &str) -> bool {
     // osascript fails when the application is not running, which doubles as
-    // the "was running" answer.
+    // the "was running" answer. AppleScript quits the whole application.
     let app = match process {
         "chrome" => "Google Chrome",
         "msedge" => "Microsoft Edge",
@@ -237,13 +280,27 @@ fn quit_process(process: &str) -> bool {
 
 #[cfg(test)]
 mod browser_quit_tests {
-    use super::quit_running_browsers;
+    use super::{quit_running_browsers, BROWSERS};
 
     #[test]
     fn reports_every_known_browser_without_panicking() {
         let closed = quit_running_browsers();
         assert_eq!(closed.len(), 5);
         assert!(closed.iter().all(|browser| !browser.name.is_empty()));
+    }
+
+    #[test]
+    fn never_targets_the_apps_own_webview_runtime() {
+        // Exact-name matching keeps Rusty Cleaner's WebView2 runtime
+        // (`msedgewebview2.exe`) and the app itself out of the kill list.
+        for (_, processes) in BROWSERS {
+            for process in *processes {
+                assert!(
+                    !process.contains("webview") && !process.contains("rusty"),
+                    "{process} must never be a close target"
+                );
+            }
+        }
     }
 }
 

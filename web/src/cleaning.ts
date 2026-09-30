@@ -63,6 +63,7 @@ export function openConfirm(
 /// Gracefully quits every running browser so cache locks are released
 /// before a clean.
 async function closeBrowsers(): Promise<void> {
+  showToast(t("toast.closingBrowsers"));
   try {
     const closed = await invoke<{ name: string; wasRunning: boolean }[]>("close_browsers");
     const running = closed.filter((browser) => browser.wasRunning).map((browser) => browser.name);

@@ -117,7 +117,7 @@ fn whatsapp_store_packages(packages_dir: &Path) -> Vec<PathBuf> {
 }
 
 #[cfg(target_os = "linux")]
-fn is_wsl() -> bool {
+pub(crate) fn is_wsl() -> bool {
     std::fs::read_to_string("/proc/version")
         .map(|version| version.to_lowercase().contains("microsoft"))
         .unwrap_or(false)

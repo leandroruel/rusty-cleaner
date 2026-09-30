@@ -627,13 +627,44 @@ struct SystemMetrics {
     disk_total: u64,
 }
 
+/// CPU usage is a delta between two refreshes; a fresh `System` has no
+/// baseline, which made the monitor read a constant 100%. One system is
+/// kept alive across polls so every read is a real measurement — seeded
+/// with a 250ms double refresh to avoid one garbage first sample.
+static METRICS_SYSTEM: std::sync::Mutex<Option<sysinfo::System>> = std::sync::Mutex::new(None);
+
 #[tauri::command]
 fn system_metrics() -> SystemMetrics {
     use sysinfo::{Disks, System};
 
-    let mut system = System::new();
-    system.refresh_cpu_usage();
-    system.refresh_memory();
+    let (cpu_percent, memory_total, memory_used) = match METRICS_SYSTEM.lock() {
+        Ok(mut guard) => {
+            let existed = guard.is_some();
+            let system = guard.get_or_insert_with(|| {
+                let mut seed = System::new();
+                seed.refresh_cpu_usage();
+                seed.refresh_memory();
+                std::thread::sleep(std::time::Duration::from_millis(250));
+                seed.refresh_cpu_usage();
+                seed.refresh_memory();
+                seed
+            });
+            if existed {
+                system.refresh_cpu_usage();
+                system.refresh_memory();
+            }
+            // Match the OS task manager: "in use" is total minus available,
+            // not the kernel's used figure (which excludes cache/buffers
+            // differently per OS).
+            let memory_total = system.total_memory();
+            (
+                system.global_cpu_usage(),
+                memory_total,
+                memory_total.saturating_sub(system.available_memory()),
+            )
+        }
+        Err(_) => (0.0, 0, 0),
+    };
 
     let disks = Disks::new_with_refreshed_list();
     let (disk_used, disk_total) = disks
@@ -648,13 +679,8 @@ fn system_metrics() -> SystemMetrics {
         })
         .unwrap_or((0, 0));
 
-    // Match the OS task manager: "in use" is total minus available, not the
-    // kernel's used figure (which excludes cache/buffers differently per OS).
-    let memory_total = system.total_memory();
-    let memory_used = memory_total.saturating_sub(system.available_memory());
-
     SystemMetrics {
-        cpu_percent: system.global_cpu_usage(),
+        cpu_percent,
         memory_used,
         memory_total,
         disk_used,
