@@ -21,8 +21,6 @@ export type AppliedTheme = {
   description: string | null;
   css: string;
   root: string;
-  background: string | null;
-  sidebar: string | null;
   brand: string | null;
   fonts: { family: string; path: string }[];
 };
