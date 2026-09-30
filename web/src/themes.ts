@@ -52,6 +52,24 @@ async function registry(): Promise<ThemeRegistryEntry[]> {
   }
 }
 
+/// Resolves {{THEME_ROOT}}/<relative-path> placeholders in theme.css by
+/// joining the theme's installation directory with the relative path at the
+/// FILESYSTEM level, then converting the absolute FILE path through the
+/// asset protocol. Calling convertFileSrc on the directory alone and
+/// appending the rest breaks the URL encoding — the asset protocol
+/// percent-encodes the whole path as one segment, so "/src/assets/…" after
+/// an encoded directory is unreachable.
+function resolveThemeUrls(css: string, themeRoot: string): string {
+  const root = themeRoot.replace(/[\\/]+$/, "");
+  return css.replace(
+    /\{\{THEME_ROOT\}\}\/([^"')\s]+)/g,
+    (_full, relative: string) => {
+      const absolute = `${root}/${relative}`.replace(/\\/g, "/");
+      return convertFileSrc(absolute);
+    },
+  );
+}
+
 /// Applies a resolved theme: the CSS is injected as a <style> element,
 /// images go through real <img> layers, fonts are injected as @font-face,
 /// and the brand icon swaps if it's a raster file.
@@ -64,8 +82,7 @@ export function applyTheme(theme: AppliedTheme): void {
   // Inject the theme.css with {{THEME_ROOT}} resolved to the asset
   // protocol URL — theme authors reference files by their path inside
   // the theme repo and the app resolves them.
-  const assetRoot = convertFileSrc(theme.root);
-  const resolvedCss = theme.css.replaceAll("{{THEME_ROOT}}", assetRoot);
+  const resolvedCss = resolveThemeUrls(theme.css, theme.root);
   const styleEl = getElement<HTMLStyleElement>("theme-css");
   styleEl.textContent = resolvedCss;
 
