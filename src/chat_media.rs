@@ -44,7 +44,7 @@ pub fn scan() -> Vec<Finding> {
         .collect();
 
     let cache_findings = parallel::parallel_map(cache_dirs, |dir| {
-        browser::cache_dir_finding(&dir, Feature::ChatMedia)
+        browser::cache_dir_finding(&dir, Feature::ChatMedia, &excluded)
     })
     .into_iter()
     .flatten();
@@ -130,7 +130,7 @@ mod tests {
         crate::browser::discover(&root, 0, &excluded, &mut dirs);
         let findings: Vec<_> = dirs
             .iter()
-            .filter_map(|dir| crate::browser::cache_dir_finding(dir, Feature::ChatMedia))
+            .filter_map(|dir| crate::browser::cache_dir_finding(dir, Feature::ChatMedia, &excluded))
             .collect();
 
         fs::remove_dir_all(&root).unwrap();

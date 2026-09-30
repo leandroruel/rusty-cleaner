@@ -123,18 +123,32 @@ pub(crate) fn is_wsl() -> bool {
         .unwrap_or(false)
 }
 
+/// Only the Windows profile of the current user is scanned through /mnt/c —
+/// never every profile under /mnt/c/Users, which would let the scan and the
+/// purge touch other people's messengers. The WSL username does not always
+/// match the Windows one, so the authoritative name comes from the Windows
+/// interop; if interop is unavailable, no Windows data is scanned at all.
 #[cfg(target_os = "linux")]
 fn windows_profiles_on_mount() -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir("/mnt/c/Users") else {
+    let Some(user) = windows_username_on_host() else {
         return Vec::new();
     };
-    entries
-        .flatten()
-        .map(|entry| entry.path().join("AppData"))
-        .filter(|appdata| appdata.is_dir())
-        .map(|appdata| appdata.parent().map(Path::to_path_buf).unwrap_or_default())
-        .filter(|profile| !profile.as_os_str().is_empty())
-        .collect()
+    let profile = PathBuf::from("/mnt/c/Users").join(user);
+    if profile.join("AppData").is_dir() {
+        vec![profile]
+    } else {
+        Vec::new()
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn windows_username_on_host() -> Option<String> {
+    let output = std::process::Command::new("/mnt/c/Windows/System32/cmd.exe")
+        .args(["/c", "echo %USERNAME%"])
+        .output()
+        .ok()?;
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    (!name.is_empty() && !name.contains('%')).then_some(name)
 }
 
 pub fn chat_dirs() -> Vec<PathBuf> {

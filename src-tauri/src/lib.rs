@@ -255,8 +255,10 @@ fn create_restore_point() -> Result<(), String> {
     use std::process::Command;
 
     // Both lifting the once-per-24h restore-point throttle and creating the
-    // checkpoint need elevation; a single UAC prompt covers them.
-    let inner = r"$ErrorActionPreference = 'Stop'; Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord; Checkpoint-Computer -Description 'Rusty Cleaner registry fix' -RestorePointType MODIFY_SETTINGS; exit 0";
+    // checkpoint need elevation; a single UAC prompt covers them. The
+    // throttle is a system-wide policy, so the previous value is recorded
+    // and restored afterwards instead of being permanently zeroed.
+    let inner = r"$ErrorActionPreference = 'Stop'; $policy = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'; $previous = (Get-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue).SystemRestorePointCreationFrequency; Set-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord; try { Checkpoint-Computer -Description 'Rusty Cleaner registry fix' -RestorePointType MODIFY_SETTINGS } finally { if ($null -ne $previous) { Set-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -Value $previous -Type DWord } else { Remove-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue } }; exit 0";
     let encoded = base64_utf16(inner);
     let outer = format!(
         "try {{ $p = Start-Process -Verb RunAs -Wait -PassThru -FilePath powershell.exe \
@@ -426,17 +428,10 @@ async fn fix_registry_issues(
 ) -> Result<RegistryFixResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let total = items.len() as u32;
-        let step = clean_progress_step(total);
+        emit_clean_progress(&app, 0, total);
         let targets: Vec<(String, Option<String>)> = items
             .into_iter()
-            .enumerate()
-            .map(|(index, item)| {
-                let current = (index + 1) as u32;
-                if current % step == 0 {
-                    emit_clean_progress(&app, current, total);
-                }
-                (item.key, item.value)
-            })
+            .map(|item| (item.key, item.value))
             .collect();
         // Mandatory safety net: every key about to be modified is exported
         // to a .reg backup and a system restore point is taken — the fix
@@ -451,26 +446,37 @@ async fn fix_registry_issues(
         #[cfg(not(windows))]
         let backup_path = None;
 
-        let outcome = rusty_cleaner::registry::fix(&targets);
-        for (key, error) in &outcome.failed {
-            rusty_cleaner::activity_log::record("registry-fix-failed", &format!("{key} ({error})"));
+        // Fixing one target at a time keeps the progress bar honest: backup,
+        // restore point and each fix advance the bar as they really happen.
+        let mut fixed = Vec::new();
+        let mut failed: Vec<TrashFailure> = Vec::new();
+        for (index, target) in targets.into_iter().enumerate() {
+            let outcome = rusty_cleaner::registry::fix(std::slice::from_ref(&target));
+            for key in outcome.fixed {
+                rusty_cleaner::activity_log::record("registry-fix", &key);
+                fixed.push(key);
+            }
+            for (key, error) in outcome.failed {
+                rusty_cleaner::activity_log::record(
+                    "registry-fix-failed",
+                    &format!("{key} ({error})"),
+                );
+                failed.push(TrashFailure { path: key, error });
+            }
+            emit_clean_progress(&app, (index + 1) as u32, total);
         }
         rusty_cleaner::activity_log::record(
             "registry-fix",
             &format!(
-                "fixed={} failed={} backup={}",
-                outcome.fixed.len(),
-                outcome.failed.len(),
+                "summary fixed={} failed={} backup={}",
+                fixed.len(),
+                failed.len(),
                 backup_path.is_some()
             ),
         );
         Ok(RegistryFixResult {
-            fixed: outcome.fixed,
-            failed: outcome
-                .failed
-                .into_iter()
-                .map(|(key, error)| TrashFailure { path: key, error })
-                .collect(),
+            fixed,
+            failed,
             backup_path,
         })
     })
@@ -494,7 +500,7 @@ async fn trash_candidates(
             if !path_buf.exists() {
                 failed.push(TrashFailure {
                     path,
-                    error: "O arquivo não existe mais".to_owned(),
+                    error: "file no longer exists".to_owned(),
                 });
             } else {
                 match trash::delete(&path_buf) {
@@ -667,9 +673,21 @@ fn system_metrics() -> SystemMetrics {
     };
 
     let disks = Disks::new_with_refreshed_list();
+    // On Windows the root mount "/" does not exist; the SystemDrive volume
+    // (usually C:\) is the disk users care about. Falling back to the first
+    // listed disk could otherwise pick a recovery or EFI partition.
+    let system_drive = env::var_os("SystemDrive").map(|drive| {
+        let drive = drive.to_string_lossy();
+        PathBuf::from(format!("{drive}\\"))
+    });
+    let root_mount: Option<std::path::PathBuf> = if cfg!(windows) {
+        system_drive
+    } else {
+        Some(std::path::PathBuf::from("/"))
+    };
     let (disk_used, disk_total) = disks
         .iter()
-        .find(|disk| disk.mount_point() == std::path::Path::new("/"))
+        .find(|disk| root_mount.as_deref() == Some(disk.mount_point()))
         .or_else(|| disks.iter().next())
         .map(|disk| {
             (

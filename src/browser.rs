@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// How deep the discovery walks browser roots looking for cache directories,
 /// and how deep the size walk goes inside a cache tree.
 const DISCOVER_DEPTH: usize = 6;
-const SIZE_DEPTH: usize = 10;
+const SIZE_DEPTH: usize = 14;
 
 /// A cache directory is one cleanup candidate, never its individual files.
 /// Browser caches hold hundreds of thousands of small files; emitting a
@@ -33,10 +33,12 @@ pub fn scan() -> Vec<Finding> {
     dirs.sort();
     dirs.dedup();
 
-    parallel::parallel_map(dirs, |dir| cache_dir_finding(&dir, Feature::Browser))
-        .into_iter()
-        .flatten()
-        .collect()
+    parallel::parallel_map(dirs, |dir| {
+        cache_dir_finding(&dir, Feature::Browser, &excluded)
+    })
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 /// Any directory with "cache" in its name is a cache directory. This covers
@@ -88,17 +90,16 @@ pub(crate) fn discover(path: &Path, depth: usize, excluded: &[PathBuf], out: &mu
     }
 }
 
-pub(crate) fn cache_dir_finding(dir: &Path, feature: Feature) -> Option<Finding> {
+pub(crate) fn cache_dir_finding(
+    dir: &Path,
+    feature: Feature,
+    excluded: &[PathBuf],
+) -> Option<Finding> {
     let metadata = std::fs::symlink_metadata(dir).ok()?;
-    let size = scanner::walk_with_dir_exclusions(
-        std::slice::from_ref(&dir.to_path_buf()),
-        SIZE_DEPTH,
-        |_, _| true,
-        false,
-    )
-    .into_iter()
-    .map(|(_, metadata)| metadata.len())
-    .sum();
+    // Streaming sum: a cache tree can hold hundreds of thousands of files,
+    // and materializing their paths just to add up sizes is what previously
+    // exhausted memory during the scan.
+    let size = scanner::dir_size(dir, SIZE_DEPTH, excluded);
     // Empty caches free nothing and would only add noise.
     if size == 0 {
         return None;
@@ -127,7 +128,7 @@ pub(crate) fn cache_dir_finding(dir: &Path, feature: Feature) -> Option<Finding>
 pub fn purge(path: &Path) -> Result<(), String> {
     if !is_safe_to_purge(path) {
         return Err(format!(
-            "refusing to purge a path that does not look like browser cache: {}",
+            "refusing to purge a path that does not look like regenerable cache: {}",
             path.display()
         ));
     }
@@ -181,7 +182,7 @@ const BROWSERS: &[(&str, &[&str])] = &[
 /// need a moment to flush and exit; extension and background processes
 /// outlive the last window and keep cache files locked.
 #[cfg(any(target_os = "linux", windows))]
-const QUIT_GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+const QUIT_GRACE: std::time::Duration = std::time::Duration::from_secs(4);
 
 /// One browser that was (or was not) asked to quit.
 pub struct ClosedBrowser {
@@ -415,7 +416,7 @@ mod tests {
         // The cache-named directory is a candidate, but the file never is;
         // the empty cache then produces no finding.
         assert_eq!(dirs, vec![root.join("Default/Empty Cache")]);
-        let finding = super::cache_dir_finding(&dirs[0], crate::scanner::Feature::Browser);
+        let finding = super::cache_dir_finding(&dirs[0], crate::scanner::Feature::Browser, &[]);
 
         fs::remove_dir_all(&root).unwrap();
         assert!(finding.is_none(), "empty caches produce no finding");

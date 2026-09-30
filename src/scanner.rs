@@ -410,6 +410,43 @@ pub fn age_days(metadata: &Metadata) -> Option<u64> {
         .map(|age| age.as_secs() / 86_400)
 }
 
+/// Streams the total size of a directory tree without materializing file
+/// paths: cache trees hold hundreds of thousands of entries, and collecting
+/// them just to sum their sizes is what exhausted memory during scans.
+/// Symlinks are never followed and user exclusions are honored.
+pub fn dir_size(root: &Path, max_depth: usize, user_excluded: &[PathBuf]) -> u64 {
+    sum_tree(root, 0, max_depth, user_excluded)
+}
+
+fn sum_tree(path: &Path, depth: usize, max_depth: usize, user_excluded: &[PathBuf]) -> u64 {
+    if user_excluded
+        .iter()
+        .any(|excluded| path.starts_with(excluded))
+    {
+        return 0;
+    }
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return 0;
+    };
+    if metadata.file_type().is_symlink() {
+        return 0;
+    }
+    if metadata.is_file() {
+        return metadata.len();
+    }
+    if !metadata.is_dir() || depth >= max_depth {
+        return 0;
+    }
+    report_progress(path);
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| sum_tree(&entry.path(), depth + 1, max_depth, user_excluded))
+        .sum()
+}
+
 pub fn unix_epoch() -> SystemTime {
     UNIX_EPOCH
 }
