@@ -1,4 +1,6 @@
 use std::env;
+#[cfg(any(target_os = "linux", windows))]
+use std::path::Path;
 use std::path::PathBuf;
 
 pub fn home_dir() -> Option<PathBuf> {
@@ -96,6 +98,45 @@ pub fn browser_dirs() -> Vec<PathBuf> {
     paths
 }
 
+/// Windows Store WhatsApp installs per-user under
+/// `AppData/Local/Packages/5319275A.WhatsAppDesktop_<hash>`.
+#[cfg(any(target_os = "linux", windows))]
+fn whatsapp_store_packages(packages_dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(packages_dir) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("5319275A.WhatsAppDesktop"))
+        })
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn is_wsl() -> bool {
+    std::fs::read_to_string("/proc/version")
+        .map(|version| version.to_lowercase().contains("microsoft"))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn windows_profiles_on_mount() -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir("/mnt/c/Users") else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .map(|entry| entry.path().join("AppData"))
+        .filter(|appdata| appdata.is_dir())
+        .map(|appdata| appdata.parent().map(Path::to_path_buf).unwrap_or_default())
+        .filter(|profile| !profile.as_os_str().is_empty())
+        .collect()
+}
+
 pub fn chat_dirs() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     #[cfg(target_os = "linux")]
@@ -109,6 +150,17 @@ pub fn chat_dirs() -> Vec<PathBuf> {
         paths.push(home.join(".config/Signal"));
         paths.push(home.join(".config/Slack"));
         paths.push(home.join(".config/Element"));
+        // WSL runs the Linux build next to Windows messengers; their app
+        // data is reachable through /mnt/c.
+        if is_wsl() {
+            for profile in windows_profiles_on_mount() {
+                paths.push(profile.join("AppData/Roaming/Telegram Desktop"));
+                paths.push(profile.join("AppData/Roaming/discord"));
+                paths.extend(whatsapp_store_packages(
+                    &profile.join("AppData/Local/Packages"),
+                ));
+            }
+        }
         // Telegram Desktop can run from any folder (e.g. Downloads/Telegram-Desktop).
         if let Ok(downloads) = home.join("Downloads").read_dir() {
             for entry in downloads.flatten() {
@@ -134,13 +186,18 @@ pub fn chat_dirs() -> Vec<PathBuf> {
         paths.push(home.join("Library/Application Support/Element"));
     }
     #[cfg(windows)]
-    if let Some(roaming) = env::var_os("APPDATA").map(PathBuf::from) {
-        paths.push(roaming.join("Telegram Desktop"));
-        paths.push(roaming.join("discord"));
-        paths.push(roaming.join("WhatsApp"));
-        paths.push(roaming.join("Signal"));
-        paths.push(roaming.join("Slack"));
-        paths.push(roaming.join("Element"));
+    {
+        if let Some(roaming) = env::var_os("APPDATA").map(PathBuf::from) {
+            paths.push(roaming.join("Telegram Desktop"));
+            paths.push(roaming.join("discord"));
+            paths.push(roaming.join("WhatsApp"));
+            paths.push(roaming.join("Signal"));
+            paths.push(roaming.join("Slack"));
+            paths.push(roaming.join("Element"));
+        }
+        if let Some(local) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+            paths.extend(whatsapp_store_packages(&local.join("Packages")));
+        }
         // Telegram Desktop can run from any folder (e.g. Downloads\Telegram-Desktop).
         if let Some(home) = home_dir() {
             if let Ok(downloads) = home.join("Downloads").read_dir() {

@@ -33,7 +33,7 @@ pub fn scan() -> Vec<Finding> {
     dirs.sort();
     dirs.dedup();
 
-    parallel::parallel_map(dirs, |dir| cache_dir_finding(&dir))
+    parallel::parallel_map(dirs, |dir| cache_dir_finding(&dir, Feature::Browser))
         .into_iter()
         .flatten()
         .collect()
@@ -45,7 +45,7 @@ pub fn scan() -> Vec<Finding> {
 /// jumpListCache) and future variants, without hardcoding per-browser lists.
 /// "Service Worker" is deliberately not matched: it also holds registrations
 /// in Database/, while its CacheStorage and ScriptCache children match here.
-fn is_cache_directory(path: &Path) -> bool {
+pub(crate) fn is_cache_directory(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
         return false;
     };
@@ -55,13 +55,13 @@ fn is_cache_directory(path: &Path) -> bool {
 /// A path is excluded when it sits inside a user-excluded folder — or when it
 /// is an ancestor of one, since purging it would take the excluded folder
 /// down with it.
-fn user_excludes(path: &Path, excluded: &[PathBuf]) -> bool {
+pub(crate) fn user_excludes(path: &Path, excluded: &[PathBuf]) -> bool {
     excluded
         .iter()
         .any(|entry| path.starts_with(entry) || entry.starts_with(path))
 }
 
-fn discover(path: &Path, depth: usize, excluded: &[PathBuf], out: &mut Vec<PathBuf>) {
+pub(crate) fn discover(path: &Path, depth: usize, excluded: &[PathBuf], out: &mut Vec<PathBuf>) {
     if depth > DISCOVER_DEPTH {
         return;
     }
@@ -88,7 +88,7 @@ fn discover(path: &Path, depth: usize, excluded: &[PathBuf], out: &mut Vec<PathB
     }
 }
 
-fn cache_dir_finding(dir: &Path) -> Option<Finding> {
+pub(crate) fn cache_dir_finding(dir: &Path, feature: Feature) -> Option<Finding> {
     let metadata = std::fs::symlink_metadata(dir).ok()?;
     let size = scanner::walk_with_dir_exclusions(
         std::slice::from_ref(&dir.to_path_buf()),
@@ -104,7 +104,7 @@ fn cache_dir_finding(dir: &Path) -> Option<Finding> {
         return None;
     }
     Some(Finding {
-        feature: Feature::Browser,
+        feature,
         name: dir
             .file_name()
             .unwrap_or_default()
@@ -119,9 +119,9 @@ fn cache_dir_finding(dir: &Path) -> Option<Finding> {
     })
 }
 
-/// Permanently removes a regenerable browser cache directory (or file) and
-/// recreates the directory empty, so the browser finds its cache root on
-/// the next run. Nothing is sent to the OS trash: cache trees can hold
+/// Permanently removes a regenerable cache directory (browser or messenger)
+/// and recreates the directory empty, so the owning app finds its cache root
+/// on the next run. Nothing is sent to the OS trash: cache trees can hold
 /// hundreds of thousands of files, and per-item recycle-bin metadata has
 /// exhausted system memory on Windows in the field.
 pub fn purge(path: &Path) -> Result<(), String> {
@@ -139,13 +139,16 @@ pub fn purge(path: &Path) -> Result<(), String> {
 /// browser findings here, but a bug (or a crafted invoke) must never turn
 /// this into an arbitrary-delete command.
 pub fn is_safe_to_purge(path: &Path) -> bool {
-    let under_browser_root = platform::browser_dirs()
+    // Messenger caches flow through the same purge command, so both root
+    // families are accepted.
+    let under_known_root = platform::browser_dirs()
         .iter()
+        .chain(platform::chat_dirs().iter())
         .any(|root| path.starts_with(root));
     let cache_like = path
         .components()
         .any(|component| is_cache_directory(component.as_ref()));
-    under_browser_root && cache_like
+    under_known_root && cache_like
 }
 
 fn purge_unchecked(path: &Path) -> Result<(), String> {
@@ -349,7 +352,7 @@ mod tests {
         // The cache-named directory is a candidate, but the file never is;
         // the empty cache then produces no finding.
         assert_eq!(dirs, vec![root.join("Default/Empty Cache")]);
-        let finding = super::cache_dir_finding(&dirs[0]);
+        let finding = super::cache_dir_finding(&dirs[0], crate::scanner::Feature::Browser);
 
         fs::remove_dir_all(&root).unwrap();
         assert!(finding.is_none(), "empty caches produce no finding");

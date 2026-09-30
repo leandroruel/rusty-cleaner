@@ -119,7 +119,7 @@ async function deleteCachePaths(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
   showCleanProgress(paths.length);
   try {
-    const result = await invoke<CacheCleanResult>("delete_browser_caches", { paths });
+    const result = await invoke<CacheCleanResult>("purge_cache_dirs", { paths });
     const removedSet = new Set(result.removed);
     const freed = state.findings
       .filter((item) => (item.feature === "browser" || item.meta === "cache-dir") && removedSet.has(item.path))
@@ -201,15 +201,21 @@ async function emptyTrash(): Promise<void> {
 }
 
 async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
-  let items = state.findings.filter((item) => item.feature === feature);
+  const all = state.findings.filter((item) => item.feature === feature);
+  // Messenger caches are regenerable directories (purged in place); saved
+  // media files are the user's (trashed). Age/size filters apply to media
+  // files only — caches are rebuilt anyway.
+  const cacheItems = all.filter((item) => item.meta === "cache-dir");
+  let mediaItems = all.filter((item) => item.meta !== "cache-dir");
   if (feature === "chat-media") {
     const filter = getElement<HTMLSelectElement>("media-filter").value;
     if (filter === "old") {
-      items = items.filter((item) => (item.ageDays ?? 0) >= 90);
+      mediaItems = mediaItems.filter((item) => (item.ageDays ?? 0) >= 90);
     } else if (filter === "large") {
-      items = items.filter((item) => item.size >= 50 * 1024 * 1024);
+      mediaItems = mediaItems.filter((item) => item.size >= 50 * 1024 * 1024);
     }
   }
+  const items = [...cacheItems, ...mediaItems];
   if (items.length === 0) return;
   const size = items.reduce((total, item) => total + item.size, 0);
   if (feature === "browser") {
@@ -220,10 +226,21 @@ async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
     );
     return;
   }
-  openConfirm(
-    t("card.cleanConfirm", { count: number(items.length), feature: t(`feature.${feature}`), size: formatBytes(size) }),
-    () => void trashPaths(items.map((item) => item.path)),
-  );
+  const mediaSize = mediaItems.reduce((total, item) => total + item.size, 0);
+  const message = cacheItems.length > 0 && mediaItems.length > 0
+    ? t("card.cleanMessengerMixedConfirm", {
+        count: number(mediaItems.length),
+        size: formatBytes(mediaSize),
+        cacheCount: number(cacheItems.length),
+        cacheSize: formatBytes(size - mediaSize),
+      })
+    : cacheItems.length > 0
+      ? t("card.cleanMessengerCacheConfirm", { count: number(cacheItems.length), size: formatBytes(size) })
+      : t("card.cleanConfirm", { count: number(mediaItems.length), feature: t(`feature.${feature}`), size: formatBytes(size) });
+  openConfirm(message, () => {
+    if (mediaItems.length > 0) void trashPaths(mediaItems.map((item) => item.path));
+    if (cacheItems.length > 0) void deleteCachePaths(cacheItems.map((item) => item.path));
+  });
 }
 
 async function trashPaths(paths: string[]): Promise<void> {

@@ -171,12 +171,12 @@ fn clean_progress_step(total: u32) -> u32 {
     (total / 100).max(1)
 }
 
-/// Permanently removes browser cache directories through the browser
-/// scanner's purge guard. Caches are regenerable and can hold hundreds of
-/// thousands of files; routing them through the OS trash has exhausted
-/// system memory on Windows in the field.
+/// Permanently removes cache directories (browser or messenger) through the
+/// purge guard. Caches are regenerable and can hold hundreds of thousands of
+/// files; routing them through the OS trash has exhausted system memory on
+/// Windows in the field.
 #[tauri::command]
-async fn delete_browser_caches(
+async fn purge_cache_dirs(
     app: tauri::AppHandle,
     paths: Vec<String>,
 ) -> Result<CacheCleanResult, String> {
@@ -189,12 +189,12 @@ async fn delete_browser_caches(
             let current = (index + 1) as u32;
             match rusty_cleaner::browser::purge(std::path::Path::new(&path)) {
                 Ok(()) => {
-                    rusty_cleaner::activity_log::record("browser-cache-clean", &path);
+                    rusty_cleaner::activity_log::record("cache-clean", &path);
                     removed.push(path);
                 }
                 Err(error) => {
                     rusty_cleaner::activity_log::record(
-                        "browser-cache-clean-failed",
+                        "cache-clean-failed",
                         &format!("{path} ({error})"),
                     );
                     failed.push(TrashFailure { path, error });
@@ -205,7 +205,7 @@ async fn delete_browser_caches(
             }
         }
         rusty_cleaner::activity_log::record(
-            "browser-cache-clean",
+            "cache-clean",
             &format!("summary removed={} failed={}", removed.len(), failed.len()),
         );
         Ok(CacheCleanResult { removed, failed })
@@ -787,7 +787,7 @@ pub fn run() {
             scan_registry_issues,
             list_applications,
             uninstall_application,
-            delete_browser_caches,
+            purge_cache_dirs,
             close_browsers,
             detect_platform,
             detect_theme,
