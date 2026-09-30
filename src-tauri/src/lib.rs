@@ -307,6 +307,66 @@ async fn close_browsers() -> Result<Vec<ClosedBrowserView>, String> {
     .map_err(|error| error.to_string())?
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MediaView {
+    path: String,
+    kind: String,
+    size: u64,
+    modified: Option<u64>,
+}
+
+/// Lists the media files of one messenger (by the identifier used on the
+/// messenger rows: "telegram", "discord", "whatsapp", …). Saved files are
+/// found by extension and cache blobs by content sniffing, so hash-named
+/// Telegram/Discord media shows up too.
+#[tauri::command]
+async fn list_messenger_media(messenger: String) -> Result<Vec<MediaView>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let excluded = rusty_cleaner::settings::load_excluded_dirs();
+        let roots: Vec<PathBuf> = rusty_cleaner::platform::chat_dirs()
+            .into_iter()
+            .filter(|dir| {
+                let text = dir.to_string_lossy().to_lowercase();
+                match messenger.as_str() {
+                    "whatsapp" => {
+                        text.contains("whatsapp")
+                            || text.contains("whatsdesk")
+                            || text.contains("zapzap")
+                    }
+                    _ => text.contains(&messenger),
+                }
+            })
+            .collect();
+        let started = std::time::Instant::now();
+        let items = rusty_cleaner::messenger_media::scan_roots(&roots, &excluded);
+        rusty_cleaner::activity_log::record(
+            "messenger-media-scan",
+            &format!(
+                "messenger={} roots={} items={} elapsed_ms={}",
+                messenger,
+                roots.len(),
+                items.len(),
+                started.elapsed().as_millis()
+            ),
+        );
+        Ok(items
+            .into_iter()
+            .map(|item| MediaView {
+                path: item.path.to_string_lossy().into_owned(),
+                kind: item.kind.as_str().to_owned(),
+                size: item.size,
+                modified: item
+                    .modified
+                    .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|age| age.as_secs()),
+            })
+            .collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 fn detect_platform() -> &'static str {
     current_platform()
@@ -809,6 +869,7 @@ pub fn run() {
             purge_cache_dirs,
             close_browsers,
             open_system_protection,
+            list_messenger_media,
             detect_platform,
             detect_theme,
             trash_candidates,

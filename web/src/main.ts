@@ -9,6 +9,7 @@ import { initResults, renderFindings, updateSelectionBar, closeResults } from ".
 import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels, updateCleanProgress } from "./cleaning";
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
 import { initRestore, isRestoreOpen, closeRestore } from "./restore";
+import { initMessengerMedia, isMessengerMediaOpen, closeMessengerMedia } from "./messenger-media";
 import { initMonitor } from "./monitor";
 import { initUpdater } from "./updater";
 import "@fontsource/manrope/400.css";
@@ -77,6 +78,7 @@ initSettings(() => {
   updateSelectionBar();
 });
 initRestore();
+initMessengerMedia();
 initMonitor();
 if (isTauri()) initUpdater();
 
@@ -86,6 +88,8 @@ window.addEventListener("keydown", (event) => {
     closeConfirm();
   } else if (isRestoreOpen()) {
     closeRestore();
+  } else if (isMessengerMediaOpen()) {
+    closeMessengerMedia();
   } else if (isSettingsOpen()) {
     closeSettings();
   } else {

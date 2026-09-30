@@ -185,32 +185,32 @@
                 <strong class="summary-size" id="messenger-size">0 B</strong>
               </div>
               <div class="messenger-list">
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="telegram">
                   <span class="app-glyph glyph-telegram" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 4 3 11.2l5.4 2L10 18l2.6-3.4L17 19l4-15Z" fill="currentColor"/></svg></span>
                   <span class="messenger-name">Telegram</span>
                   <span class="messenger-count" id="telegram-count">—</span>
                 </button>
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="discord">
                   <span class="app-glyph glyph-discord" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.6 5.3A16 16 0 0 0 14.6 4l-.5 1a12 12 0 0 0-4.2 0L9.4 4a16 16 0 0 0-4 1.3C2.6 9.1 2 12.8 2.3 16.4A16 16 0 0 0 7 19l1.1-1.8a10 10 0 0 1-1.7-.8l.4-.3a11.4 11.4 0 0 0 10.4 0l.4.3c-.5.3-1.1.6-1.7.8L17 19a16 16 0 0 0 4.7-2.6c.4-4.2-.7-7.9-3.1-11.1ZM9.7 14.6c-.9 0-1.6-.8-1.6-1.8s.7-1.8 1.6-1.8 1.6.8 1.6 1.8-.7 1.8-1.6 1.8Zm4.6 0c-.9 0-1.6-.8-1.6-1.8s.7-1.8 1.6-1.8 1.6.8 1.6 1.8-.7 1.8-1.6 1.8Z" fill="currentColor"/></svg></span>
                   <span class="messenger-name">Discord</span>
                   <span class="messenger-count" id="discord-count">—</span>
                 </button>
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="whatsapp">
                   <span class="app-glyph glyph-whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.6.8-.8 1-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.9.9-1.1 2.2-.2 3.9a11.6 11.6 0 0 0 4.5 4.2c1.7.8 2.4.9 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.1-.4-.2Z" fill="currentColor"/></svg></span>
                   <span class="messenger-name">WhatsApp</span>
                   <span class="messenger-count" id="whatsapp-count">—</span>
                 </button>
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="signal">
                   <span class="app-glyph glyph-signal" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8Zm-1-13h2v6h-2Zm0 8h2v2h-2Z" fill="currentColor"/></svg></span>
                   <span class="messenger-name">Signal</span>
                   <span class="messenger-count" id="signal-count">—</span>
                 </button>
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="slack">
                   <span class="app-glyph glyph-slack" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2a2 2 0 0 0-2 2v5H2a2 2 0 0 0 0 4h5v5a2 2 0 0 0 4 0v-5h5a2 2 0 0 0 0-4h-5V4a2 2 0 0 0-2-2Z" fill="currentColor"/></svg></span>
                   <span class="messenger-name">Slack</span>
                   <span class="messenger-count" id="slack-count">—</span>
                 </button>
-                <button class="messenger-row" type="button" data-filter="chat-media">
+                <button class="messenger-row" type="button" data-messenger="element">
                   <span class="app-glyph glyph-element" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
                   <span class="messenger-name">Element</span>
                   <span class="messenger-count" id="element-count">—</span>
@@ -452,6 +452,45 @@
           </div>
         </div>
       </div>
+      <div class="media-overlay" id="media-overlay" hidden>
+        <section class="panel media-panel" aria-label="Messenger media gallery">
+          <div class="results-heading">
+            <button class="icon-button results-back" id="media-close" type="button" data-i18n-aria="results.back" aria-label="Back">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8H4m0 0 3.2-3.2M4 8l3.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div>
+              <p class="eyebrow" data-i18n="media.eyebrow">MEDIA</p>
+              <h2 id="media-title"></h2>
+            </div>
+            <div class="results-controls">
+              <label class="filter-control">
+                <span data-i18n="media.kindFilter">Type</span>
+                <select id="media-kind-filter" aria-label="Filter by media type">
+                  <option value="all" data-i18n="media.kindAll">All types</option>
+                  <option value="image" data-i18n="media.image">Images</option>
+                  <option value="video" data-i18n="media.video">Videos</option>
+                  <option value="audio" data-i18n="media.audio">Audio</option>
+                  <option value="document" data-i18n="media.document">Documents</option>
+                </select>
+              </label>
+              <label class="filter-control check-control">
+                <input type="checkbox" id="media-select-all" />
+                <span data-i18n="media.selectAll">Select all</span>
+              </label>
+            </div>
+          </div>
+          <div class="media-grid" id="media-grid"></div>
+          <div class="media-footer">
+            <span id="media-summary"></span>
+            <button class="button button-quiet" id="media-load-more" type="button" hidden data-i18n="media.loadMore">Load more</button>
+          </div>
+          <div class="selection-bar" id="media-selection-bar" hidden>
+            <span id="media-selection-summary"></span>
+            <button class="button button-danger" id="media-clean-button" type="button" data-i18n="selection.trash">Move to trash</button>
+          </div>
+        </section>
+      </div>
+
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

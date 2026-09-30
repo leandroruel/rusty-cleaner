@@ -268,7 +268,7 @@ async function cleanCategory(feature: "browser" | "chat-media"): Promise<void> {
   });
 }
 
-async function trashPaths(paths: string[]): Promise<void> {
+export async function trashPaths(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
   showCleanProgress(paths.length);
   try {
