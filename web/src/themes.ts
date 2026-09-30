@@ -20,6 +20,7 @@ export type AppliedTheme = {
   author: string | null;
   description: string | null;
   css: string;
+  root: string;
   background: string | null;
   sidebar: string | null;
   brand: string | null;
@@ -60,31 +61,13 @@ export function applyTheme(theme: AppliedTheme): void {
   // Mark as community-themed so the built-in omarchy overrides stand down.
   root.dataset.communityTheme = "1";
 
-  // Inject the theme.css — this IS the theme (variables + custom rules).
+  // Inject the theme.css with {{THEME_ROOT}} resolved to the asset
+  // protocol URL — theme authors reference files by their path inside
+  // the theme repo and the app resolves them.
+  const assetRoot = convertFileSrc(theme.root);
+  const resolvedCss = theme.css.replaceAll("{{THEME_ROOT}}", assetRoot);
   const styleEl = getElement<HTMLStyleElement>("theme-css");
-  styleEl.textContent = theme.css;
-
-  // Background image through <img> (asset protocol works for <img>, not
-  // reliably for CSS background-image in some WebViews).
-  const bgLayer = getElement<HTMLElement>("theme-bg");
-  const bgImg = getElement<HTMLImageElement>("theme-bg-img");
-  if (theme.background) {
-    bgImg.src = convertFileSrc(theme.background);
-    bgLayer.hidden = false;
-  } else {
-    bgLayer.hidden = true;
-    bgImg.src = "";
-  }
-
-  const sideLayer = getElement<HTMLElement>("sidebar-bg");
-  const sideImg = getElement<HTMLImageElement>("sidebar-bg-img");
-  if (theme.sidebar) {
-    sideImg.src = convertFileSrc(theme.sidebar);
-    sideLayer.hidden = false;
-  } else {
-    sideLayer.hidden = true;
-    sideImg.src = "";
-  }
+  styleEl.textContent = resolvedCss;
 
   // Brand icon — only raster formats are reliable through the asset protocol.
   const brand = document.getElementById("brand-icon") as HTMLImageElement | null;
@@ -116,10 +99,6 @@ export function applyDefault(): void {
   getElement<HTMLElement>("sidebar").removeAttribute("style");
   getElement<HTMLStyleElement>("theme-css").textContent = "";
   getElement<HTMLStyleElement>("theme-fonts").textContent = "";
-  getElement<HTMLElement>("theme-bg").hidden = true;
-  getElement<HTMLImageElement>("theme-bg-img").src = "";
-  getElement<HTMLElement>("sidebar-bg").hidden = true;
-  getElement<HTMLImageElement>("sidebar-bg-img").src = "";
   const brand = document.getElementById("brand-icon") as HTMLImageElement | null;
   if (brand?.dataset.defaultSrc) brand.src = brand.dataset.defaultSrc;
 }

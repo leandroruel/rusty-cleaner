@@ -40,6 +40,9 @@ pub struct ResolvedTheme {
     pub description: Option<String>,
     /// The full theme.css content — CSS variables and custom rules.
     pub css: String,
+    /// Absolute path to the theme directory, used by the frontend to
+    /// resolve {{THEME_ROOT}} placeholders in the CSS.
+    pub root: String,
     pub background: Option<String>,
     pub sidebar: Option<String>,
     pub brand: Option<String>,
@@ -199,6 +202,7 @@ fn resolve(root: &Path, manifest: ThemeManifest) -> Result<ResolvedTheme, String
         author: manifest.author,
         description: manifest.description,
         css,
+        root: root.to_string_lossy().into_owned(),
         background: absolute(&manifest.background),
         sidebar: absolute(&manifest.sidebar),
         brand: absolute(&manifest.brand),

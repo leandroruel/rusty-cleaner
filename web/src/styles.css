@@ -428,14 +428,3 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .theme-card-actions .button { min-height:28px; padding:4px 12px; font-size:10px; }
 .theme-badge { padding:4px 10px; border:1px solid color-mix(in srgb, var(--green) 32%, transparent); border-radius:999px; background:color-mix(in srgb, var(--green) 8%, transparent); color:var(--green); font:600 9px var(--font-mono); letter-spacing:.05em; }
 
-/* Theme background layers — real <img> elements (asset protocol works for
-   <img> but not reliably for CSS background-image in WebViews) */
-.theme-bg { position:fixed; inset:0; z-index:0; pointer-events:none; }
-.theme-bg[hidden] { display:none; }
-.theme-bg img { width:100%; height:100%; object-fit:cover; }
-.theme-bg-tint { position:absolute; inset:0; background:var(--bg); opacity:1; }
-.sidebar-bg { position:fixed; top:0; bottom:0; left:0; width:248px; z-index:0; pointer-events:none; }
-.sidebar-bg[hidden] { display:none; }
-.sidebar-bg img { width:100%; height:100%; object-fit:cover; }
-.sidebar-bg-tint { position:absolute; inset:0; background:var(--panel); opacity:1; }
-.app-shell { position:relative; z-index:1; }
