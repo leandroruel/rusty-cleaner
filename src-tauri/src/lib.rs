@@ -473,6 +473,14 @@ fn delete_theme(id: String) -> Result<(), String> {
     themes::delete(&id)
 }
 
+/// Checks which installed themes have updates available on their remote.
+#[tauri::command]
+async fn check_theme_updates() -> Result<Vec<(String, bool)>, String> {
+    tauri::async_runtime::spawn_blocking(themes::check_updates)
+        .await
+        .map_err(|error| error.to_string())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AppView {
@@ -977,6 +985,7 @@ pub fn run() {
             download_theme,
             installed_themes,
             delete_theme,
+            check_theme_updates,
             copy_media_file,
             move_media_file,
             detect_platform,

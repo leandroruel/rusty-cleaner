@@ -145,6 +145,58 @@ pub fn installed() -> Vec<ResolvedTheme> {
     themes
 }
 
+/// Checks which installed themes have a newer commit on their remote
+/// repository. Returns a map of theme id → has_remote_update.
+pub fn check_updates() -> Vec<(String, bool)> {
+    installed()
+        .into_iter()
+        .map(|theme| {
+            let dir = themes_dir().join(&theme.id);
+            let has_update = git_has_remote_update(&dir);
+            (theme.id, has_update)
+        })
+        .collect()
+}
+
+/// True when the remote repository has a commit that the local clone
+/// doesn't. Uses git ls-remote (one network call, no clone).
+fn git_has_remote_update(dir: &Path) -> bool {
+    let Some(local_head) = git(dir, &["rev-parse", "HEAD"]) else {
+        return false;
+    };
+    let Some(remote_url) = git(dir, &["config", "--get", "remote.origin.url"]) else {
+        return false;
+    };
+    let output = std::process::Command::new("git")
+        .args(["ls-remote", &remote_url, "HEAD"])
+        .output();
+    let Ok(output) = output else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(remote_head) = stdout.split_whitespace().next() else {
+        return false;
+    };
+    local_head != remote_head
+}
+
+fn git(dir: &Path, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    (!text.is_empty()).then_some(text)
+}
+
 pub fn delete(id: &str) -> Result<(), String> {
     if id.trim().is_empty() || id.contains(['/', '\\']) || id.contains("..") {
         return Err(format!("invalid theme id: {id}"));

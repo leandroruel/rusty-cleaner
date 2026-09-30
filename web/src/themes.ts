@@ -39,6 +39,7 @@ type ThemeCard = {
 
 let installed: AppliedTheme[] = [];
 let appliedId: string | null = null;
+let updatesAvailable = new Set<string>();
 
 async function registry(): Promise<ThemeRegistryEntry[]> {
   try {
@@ -169,6 +170,22 @@ async function applyCard(card: ThemeCard): Promise<void> {
   }
 }
 
+async function updateCard(card: ThemeCard): Promise<void> {
+  if (!card.entry || !card.entry.repo) return;
+  try {
+    const theme = await invoke<AppliedTheme>("download_theme", { repo: card.entry.repo });
+    installed = await invoke<AppliedTheme[]>("installed_themes");
+    updatesAvailable.delete(theme.id);
+    if (appliedId === theme.id) {
+      applyTheme(theme);
+    }
+    showToast(t("themes.updated", { name: theme.name }));
+    await refreshPanel();
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
 async function removeCard(card: ThemeCard): Promise<void> {
   if (!card.theme) return;
   try {
@@ -185,7 +202,17 @@ async function removeCard(card: ThemeCard): Promise<void> {
   }
 }
 
+async function checkUpdates(): Promise<void> {
+  try {
+    const updates = await invoke<[string, boolean][]>("check_theme_updates");
+    updatesAvailable = new Set(updates.filter(([, hasUpdate]) => hasUpdate).map(([id]) => id));
+  } catch {
+    // Network unavailable — silently skip the update check.
+  }
+}
+
 async function themeCards(): Promise<ThemeCard[]> {
+  void checkUpdates();
   const entries = await registry();
   const cards: ThemeCard[] = [
     {
@@ -255,6 +282,14 @@ function renderCard(card: ThemeCard, list: HTMLElement): void {
     apply.textContent = card.theme ? t("themes.apply") : t("themes.downloadApply");
     apply.addEventListener("click", () => void applyCard(card));
     actions.append(apply);
+  }
+  if (card.theme && updatesAvailable.has(card.theme.id)) {
+    const update = document.createElement("button");
+    update.type = "button";
+    update.className = "button button-quiet theme-update";
+    update.textContent = t("themes.updateAvailable");
+    update.addEventListener("click", () => void updateCard(card));
+    actions.append(update);
   }
   if (card.theme) {
     const remove = document.createElement("button");
