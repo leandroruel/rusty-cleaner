@@ -367,6 +367,86 @@ async fn list_messenger_media(messenger: String) -> Result<Vec<MediaView>, Strin
     .map_err(|error| error.to_string())?
 }
 
+/// Opens a media file with the system's default viewer.
+#[tauri::command]
+fn open_media_file(path: String) -> Result<(), String> {
+    open::that(&path).map_err(|error| error.to_string())
+}
+
+/// Copies a media file into a destination folder, renaming on collision.
+/// Returns the path of the created copy.
+#[tauri::command]
+async fn copy_media_file(path: String, destination: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        copy_or_move(
+            std::path::Path::new(&path),
+            std::path::Path::new(&destination),
+            false,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Moves a media file into a destination folder, renaming on collision.
+/// Falls back to copy+delete when the folders live on different volumes
+/// (e.g. the WSL home and /mnt/c). Returns the new path.
+#[tauri::command]
+async fn move_media_file(path: String, destination: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        copy_or_move(
+            std::path::Path::new(&path),
+            std::path::Path::new(&destination),
+            true,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn copy_or_move(
+    source: &std::path::Path,
+    destination: &std::path::Path,
+    remove_source: bool,
+) -> Result<String, String> {
+    if !source.is_file() {
+        return Err("file no longer exists".to_owned());
+    }
+    std::fs::create_dir_all(destination).map_err(|error| error.to_string())?;
+    let name = source
+        .file_name()
+        .ok_or("file has no name")?
+        .to_string_lossy()
+        .into_owned();
+    let mut target = destination.join(&name);
+    let mut counter = 1;
+    while target.exists() {
+        let stem = std::path::Path::new(&name)
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_else(|| name.clone());
+        let extension = std::path::Path::new(&name)
+            .extension()
+            .map(|ext| format!(".{}", ext.to_string_lossy()))
+            .unwrap_or_default();
+        target = destination.join(format!("{stem} ({counter}){extension}"));
+        counter += 1;
+    }
+    std::fs::copy(source, &target).map_err(|error| error.to_string())?;
+    if remove_source {
+        std::fs::remove_file(source).map_err(|error| error.to_string())?;
+    }
+    rusty_cleaner::activity_log::record(
+        if remove_source {
+            "media-move"
+        } else {
+            "media-copy"
+        },
+        &format!("{} -> {}", source.display(), target.display()),
+    );
+    Ok(target.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn detect_platform() -> &'static str {
     current_platform()
@@ -377,6 +457,7 @@ fn detect_platform() -> &'static str {
 struct AppView {
     name: String,
     path: String,
+    icon: Option<String>,
     size: Option<u64>,
     last_used: Option<u64>,
     uninstall_kind: Option<String>,
@@ -404,6 +485,7 @@ fn to_app_view(app: rusty_cleaner::applications::AppEntry) -> AppView {
     AppView {
         name: app.name,
         path: app.path.to_string_lossy().into_owned(),
+        icon: app.icon.map(|path| path.to_string_lossy().into_owned()),
         size: app.size,
         last_used: app
             .last_used
@@ -870,6 +952,9 @@ pub fn run() {
             close_browsers,
             open_system_protection,
             list_messenger_media,
+            open_media_file,
+            copy_media_file,
+            move_media_file,
             detect_platform,
             detect_theme,
             trash_candidates,

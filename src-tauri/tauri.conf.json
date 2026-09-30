@@ -27,7 +27,12 @@
         "enable": true,
         "scope": [
           "$HOME/**",
-          "/mnt/c/**"
+          "/mnt/c/**",
+          "/usr/share/icons/**",
+          "/usr/share/pixmaps/**",
+          "/usr/local/share/icons/**",
+          "/var/lib/flatpak/exports/share/icons/**",
+          "/var/lib/snapd/desktop/icons/**"
         ]
       }
     }

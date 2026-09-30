@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, showToast } from "./state";
 import { openConfirm } from "./cleaning";
@@ -6,6 +6,7 @@ import { openConfirm } from "./cleaning";
 type AppEntry = {
   name: string;
   path: string;
+  icon: string | null;
   size: number | null;
   lastUsed: number | null;
   uninstallKind: string | null;
@@ -45,7 +46,15 @@ function renderApps(): void {
 
     const glyph = document.createElement("span");
     glyph.className = "app-glyph";
-    glyph.textContent = app.name.slice(0, 1).toUpperCase();
+    if (app.icon) {
+      const image = document.createElement("img");
+      image.src = convertFileSrc(app.icon);
+      image.alt = "";
+      image.loading = "lazy";
+      glyph.append(image);
+    } else {
+      glyph.textContent = app.name.slice(0, 1).toUpperCase();
+    }
 
     const info = document.createElement("div");
     info.className = "app-info";

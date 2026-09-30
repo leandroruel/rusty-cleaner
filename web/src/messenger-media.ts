@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, showToast, state } from "./state";
 import { openConfirm, trashPaths } from "./cleaning";
@@ -26,6 +27,12 @@ const selectionBar = getElement<HTMLElement>("media-selection-bar");
 const selectionSummary = getElement<HTMLElement>("media-selection-summary");
 const cleanButton = getElement<HTMLButtonElement>("media-clean-button");
 const closeButton = getElement<HTMLButtonElement>("media-close");
+const menu = getElement<HTMLElement>("media-menu");
+const menuView = getElement<HTMLButtonElement>("media-menu-view");
+const menuCopy = getElement<HTMLButtonElement>("media-menu-copy");
+const menuMove = getElement<HTMLButtonElement>("media-menu-move");
+
+let menuPath: string | null = null;
 
 let items: MediaItem[] = [];
 let selection = new Set<string>();
@@ -81,6 +88,16 @@ function tile(item: MediaItem): HTMLElement {
     preview.append(kindIcon(item.kind));
   }
 
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "media-more";
+  more.textContent = "⋯";
+  more.setAttribute("aria-label", t("media.menuAria", { name: item.path }));
+  more.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openMenu(more, item.path);
+  });
+
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.className = "media-check";
@@ -109,7 +126,7 @@ function tile(item: MediaItem): HTMLElement {
   checkbox.addEventListener("change", toggle);
   card.addEventListener("click", toggle);
 
-  card.append(preview, checkbox, info);
+  card.append(preview, more, checkbox, info);
   return card;
 }
 
@@ -198,6 +215,73 @@ async function runClean(paths: string[]): Promise<void> {
   }
 }
 
+function openMenu(anchor: HTMLElement, path: string): void {
+  menuPath = path;
+  const rect = anchor.getBoundingClientRect();
+  menu.hidden = false;
+  const menuHeight = 110;
+  const top = rect.bottom + 4 + menuHeight > window.innerHeight
+    ? Math.max(8, rect.top - menuHeight - 4)
+    : rect.bottom + 4;
+  menu.style.top = `${top}px`;
+  menu.style.left = `${Math.min(rect.right - 170, window.innerWidth - 178)}px`;
+}
+
+function closeMenu(): void {
+  menu.hidden = true;
+  menuPath = null;
+}
+
+async function pickFolder(): Promise<string | null> {
+  const selected = await openDialog({ directory: true, multiple: false });
+  return typeof selected === "string" && selected ? selected : null;
+}
+
+function fileLabel(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path;
+}
+
+async function viewCurrent(): Promise<void> {
+  if (!menuPath) return;
+  try {
+    await invoke("open_media_file", { path: menuPath });
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
+async function copyCurrent(): Promise<void> {
+  if (!menuPath) return;
+  const destination = await pickFolder();
+  if (!destination) return;
+  try {
+    const created = await invoke<string>("copy_media_file", { path: menuPath, destination });
+    showToast(t("media.copied", { name: fileLabel(created) }));
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
+async function moveCurrent(): Promise<void> {
+  if (!menuPath) return;
+  const source = menuPath;
+  const destination = await pickFolder();
+  if (!destination) return;
+  try {
+    const created = await invoke<string>("move_media_file", { path: source, destination });
+    showToast(t("media.moved", { name: fileLabel(created) }));
+    items = items.filter((item) => item.path !== source);
+    selection.delete(source);
+    state.selectedPaths.delete(source);
+    state.findings = state.findings.filter((item) => item.path !== source);
+    renderFindings();
+    shownCount = Math.min(shownCount, Math.max(visibleItems().length, 0));
+    renderGrid();
+  } catch (error) {
+    showToast(String(error));
+  }
+}
+
 export function initMessengerMedia(): void {
   document.querySelectorAll<HTMLButtonElement>("[data-messenger]").forEach((row) => {
     row.addEventListener("click", () => {
@@ -226,10 +310,20 @@ export function initMessengerMedia(): void {
     renderGrid();
   });
   cleanButton.addEventListener("click", () => void cleanSelected());
-  closeButton.addEventListener("click", closeMessengerMedia);
+  menuView.addEventListener("click", () => { closeMenu(); void viewCurrent(); });
+  menuCopy.addEventListener("click", () => { closeMenu(); void copyCurrent(); });
+  menuMove.addEventListener("click", () => { closeMenu(); void moveCurrent(); });
   overlay.addEventListener("click", (event) => {
+    if (!menu.hidden && !menu.contains(event.target as Node)) closeMenu();
     if (event.target === overlay) closeMessengerMedia();
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !menu.hidden) {
+      event.stopImmediatePropagation();
+      closeMenu();
+    }
+  }, true);
+  closeButton.addEventListener("click", closeMessengerMedia);
 }
 
 export function isMessengerMediaOpen(): boolean {

@@ -8,6 +8,8 @@ pub struct AppEntry {
     pub name: String,
     /// Executable, launcher or installation directory, for reference display.
     pub path: PathBuf,
+    /// Resolved icon file, when the platform can find one.
+    pub icon: Option<PathBuf>,
     /// Total disk size of the installation, when a manager reports it.
     pub size: Option<u64>,
     /// Last time the app was used, when the platform can tell. `None` also
@@ -319,6 +321,7 @@ pub fn parse_mdls_date(text: &str) -> Option<SystemTime> {
 pub struct DesktopInfo {
     pub name: String,
     pub exec: String,
+    pub icon: Option<String>,
 }
 
 pub fn parse_desktop_entry(text: &str) -> Option<DesktopInfo> {
@@ -326,6 +329,7 @@ pub fn parse_desktop_entry(text: &str) -> Option<DesktopInfo> {
     let mut name: Option<String> = None;
     let mut localized_name: Option<String> = None;
     let mut exec: Option<String> = None;
+    let mut icon: Option<String> = None;
     let mut app_type = String::new();
     let mut hidden = false;
     let mut no_display = false;
@@ -349,6 +353,7 @@ pub fn parse_desktop_entry(text: &str) -> Option<DesktopInfo> {
                 localized_name = Some(value.to_owned());
             }
             "Exec" if exec.is_none() => exec = Some(value.to_owned()),
+            "Icon" if icon.is_none() => icon = Some(value.to_owned()),
             "NoDisplay" => no_display = value.eq_ignore_ascii_case("true"),
             "Hidden" => hidden = value.eq_ignore_ascii_case("true"),
             _ => {}
@@ -357,7 +362,7 @@ pub fn parse_desktop_entry(text: &str) -> Option<DesktopInfo> {
     let name = name.or(localized_name)?;
     let exec = exec?;
     (app_type == "Application" && !no_display && !hidden && !name.is_empty() && !exec.is_empty())
-        .then_some(DesktopInfo { name, exec })
+        .then_some(DesktopInfo { name, exec, icon })
 }
 
 /// What a .desktop `Exec=` line launches.
@@ -439,8 +444,9 @@ mod linux {
         let dpkg = dpkg_sizes();
         let rpm = rpm_sizes();
         let snap = snap_sizes();
-        parallel_map(desktop, move |(name, exec)| {
-            build_entry(name, exec, &pacman, &dpkg, &rpm, &snap)
+        parallel_map(desktop, move |app| {
+            let icon = resolve_desktop_icon(app.icon.as_deref());
+            build_entry(app.name, app.exec, icon, &pacman, &dpkg, &rpm, &snap)
         })
         .into_iter()
         .flatten()
@@ -468,8 +474,15 @@ mod linux {
         roots
     }
 
-    fn collect_desktop_files() -> Vec<(String, String)> {
-        let mut by_stem: HashMap<String, (u8, (String, String))> = HashMap::new();
+    /// A desktop entry kept for the applications list.
+    struct DesktopApp {
+        name: String,
+        exec: String,
+        icon: Option<String>,
+    }
+
+    fn collect_desktop_files() -> Vec<DesktopApp> {
+        let mut by_stem: HashMap<String, (u8, DesktopApp)> = HashMap::new();
         for (priority, root) in desktop_roots() {
             let Ok(entries) = std::fs::read_dir(&root) else {
                 continue;
@@ -494,11 +507,63 @@ mod linux {
                     None => true,
                 };
                 if replace {
-                    by_stem.insert(stem, (priority, (parsed.name, parsed.exec)));
+                    by_stem.insert(
+                        stem,
+                        (
+                            priority,
+                            DesktopApp {
+                                name: parsed.name,
+                                exec: parsed.exec,
+                                icon: parsed.icon,
+                            },
+                        ),
+                    );
                 }
             }
         }
         by_stem.into_values().map(|(_, entry)| entry).collect()
+    }
+
+    /// Resolves a .desktop `Icon=` value to a renderable file: absolute
+    /// paths pass through; theme names are searched in the standard icon
+    /// directories, largest size first.
+    fn resolve_desktop_icon(icon: Option<&str>) -> Option<PathBuf> {
+        let icon = icon?;
+        let icon = icon.trim();
+        if icon.is_empty() {
+            return None;
+        }
+        let direct = PathBuf::from(icon);
+        if direct.is_absolute() {
+            return direct.is_file().then_some(direct);
+        }
+        // Search the largest raster sizes first, then the scalable and
+        // pixmap fallbacks.
+        let sizes = [
+            "512x512", "256x256", "192x192", "128x128", "96x96", "64x64", "48x48", "32x32",
+            "24x24", "16x16",
+        ];
+        let themes = [
+            "/usr/share/icons/hicolor",
+            "/usr/local/share/icons/hicolor",
+            "/var/lib/flatpak/exports/share/icons/hicolor",
+            "/var/lib/snapd/desktop/icons/hicolor",
+        ];
+        for theme in themes {
+            for size in sizes {
+                let candidate = PathBuf::from(format!("{theme}/{size}/apps/{icon}.png"));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+        for extension in ["png", "svg", "xpm"] {
+            let candidate = PathBuf::from(format!("/usr/share/pixmaps/{icon}.{extension}"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        None
     }
 
     fn pacman_sizes() -> HashMap<String, u64> {
@@ -583,9 +648,11 @@ mod linux {
         sizes
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_entry(
         name: String,
         exec: String,
+        icon: Option<PathBuf>,
         pacman: &HashMap<String, u64>,
         dpkg: &HashMap<String, u64>,
         rpm: &HashMap<String, u64>,
@@ -598,6 +665,7 @@ mod linux {
                 let last_used = dir.as_deref().and_then(flatpak_last_used);
                 Some(AppEntry {
                     name,
+                    icon,
                     path: dir.unwrap_or_default(),
                     size,
                     last_used,
@@ -608,6 +676,7 @@ mod linux {
                 let launcher = PathBuf::from("/snap/bin").join(&snap_name);
                 Some(AppEntry {
                     name,
+                    icon,
                     path: launcher.clone(),
                     size: snap.get(&snap_name).copied(),
                     last_used: last_used_by_atime(&launcher),
@@ -620,6 +689,7 @@ mod linux {
                 if let Some(package) = owning_pacman_package(&path_string) {
                     return Some(AppEntry {
                         name,
+                        icon,
                         path,
                         size: pacman.get(&package).copied(),
                         last_used,
@@ -629,6 +699,7 @@ mod linux {
                 if let Some(package) = owning_dpkg_package(&path_string) {
                     return Some(AppEntry {
                         name,
+                        icon,
                         path,
                         size: dpkg.get(&package).copied(),
                         last_used,
@@ -638,6 +709,7 @@ mod linux {
                 if let Some(package) = owning_rpm_package(&path_string) {
                     return Some(AppEntry {
                         name,
+                        icon,
                         path,
                         size: rpm.get(&package).copied(),
                         last_used,
@@ -647,6 +719,7 @@ mod linux {
                 // Manually installed app outside any package manager.
                 Some(AppEntry {
                     name,
+                    icon,
                     path,
                     size: None,
                     last_used,
@@ -767,6 +840,7 @@ mod macos {
                 .unwrap_or_default();
             Some(AppEntry {
                 name,
+                icon: None,
                 path: bundle.clone(),
                 size: directory_size(&bundle),
                 last_used: mdls_last_used(&bundle),
@@ -844,11 +918,26 @@ mod windows {
                 let install_location = string_value(&values, "InstallLocation");
                 let display_icon = string_value(&values, "DisplayIcon");
                 let size_kb = dword_value(&values, "EstimatedSize");
-                let path = display_icon
+                let raw_icon = display_icon
                     .as_deref()
                     .and_then(|icon| icon.split_once(',').map(|(path, _)| path))
-                    .filter(|path| !path.is_empty())
-                    .map(PathBuf::from)
+                    .map(PathBuf::from);
+                // WebView images cannot come from inside an .exe — only
+                // standalone .ico/.png icons are usable.
+                let is_image_icon = raw_icon.as_ref().is_some_and(|icon| {
+                    icon.extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| {
+                            matches!(ext.to_ascii_lowercase().as_str(), "ico" | "png")
+                        })
+                });
+                let icon = if is_image_icon {
+                    raw_icon.clone()
+                } else {
+                    None
+                };
+                let path = raw_icon
+                    .filter(|icon| !icon.as_os_str().is_empty())
                     .or_else(|| {
                         install_location
                             .clone()
@@ -857,6 +946,7 @@ mod windows {
                     });
                 apps.push(AppEntry {
                     name: display_name,
+                    icon,
                     path: path.unwrap_or_else(|| PathBuf::from(&key_path)),
                     size: size_kb.map(|kb| kb as u64 * 1024),
                     last_used: None,
@@ -905,12 +995,44 @@ mod windows {
         let file_name = app
             .path
             .file_name()
-            .map(|name| name.to_string_lossy().to_lowercase())?;
-        usage
+            .map(|name| name.to_string_lossy().to_lowercase());
+        let mut matches: Vec<SystemTime> = usage
             .iter()
-            .filter(|(key, _)| key.ends_with(&file_name))
+            .filter(|(key, _)| {
+                file_name
+                    .as_deref()
+                    .is_some_and(|file_name| key.ends_with(file_name))
+            })
             .map(|(_, time)| *time)
-            .max()
+            .collect();
+        // UserAssist records GUI launches by their Start Menu shortcut
+        // (e.g. "google chrome.lnk"), not by the executable — the most
+        // common reason an app resolved to "never used". Match shortcut
+        // stems against the display name in both directions.
+        let normalize = |text: &str| {
+            text.chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>()
+        };
+        let app_name = normalize(&app.name);
+        if app_name.len() >= 3 {
+            matches.extend(
+                usage
+                    .iter()
+                    .filter(|(key, _)| key.ends_with(".lnk"))
+                    .filter(|(key, _)| {
+                        let stem = key
+                            .rsplit('\\')
+                            .next()
+                            .unwrap_or(key)
+                            .trim_end_matches(".lnk");
+                        let stem = normalize(stem);
+                        !stem.is_empty() && (stem.contains(&app_name) || app_name.contains(&stem))
+                    })
+                    .map(|(_, time)| *time),
+            );
+        }
+        matches.into_iter().max()
     }
 
     fn string_value(values: &[(String, RegValue)], name: &str) -> Option<String> {
