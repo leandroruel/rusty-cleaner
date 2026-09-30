@@ -72,19 +72,19 @@ h1,h2,p { margin-top:0; }
 h1 { margin-bottom:0; font-size:18px; font-weight:700; }
 h2 { margin:0; font-size:13px; font-weight:700; }
 .read-only-badge { flex-shrink:0; border:1px solid color-mix(in srgb, var(--cyan) 28%, transparent); color:var(--cyan); border-radius:3px; padding:4px 7px; font:500 9px var(--font-mono); }
-.scan-visual { position:relative; display:grid; width:clamp(180px,30vh,232px); aspect-ratio:1; flex:none; place-items:center; margin:clamp(16px,4vh,28px) auto 10px; }
-.scan-ring { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 220deg,var(--cyan),var(--purple),var(--pink),var(--amber),var(--cyan)); opacity:.92; }
-.scan-ring::after { position:absolute; content:""; inset:9px; border-radius:50%; background:var(--panel); }
-.scan-ring-inner { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
-.scan-ring-inner strong { font:700 24px var(--font-mono); }
-.scan-ring-inner span { color:var(--text-faint); font:500 9px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; }
-.is-scanning .scan-ring { animation:spin 1.2s linear infinite; }
+.scan-visual { position:relative; display:grid; width:clamp(196px,34vh,248px); aspect-ratio:1; flex:none; place-items:center; margin:clamp(12px,3vh,22px) auto 8px; }
+.scan-ring { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 120deg, var(--pink) 0%, var(--cyan) 42%, var(--pink) 100%); -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 11px), #000 calc(100% - 10px)); mask:radial-gradient(farthest-side, transparent calc(100% - 11px), #000 calc(100% - 10px)); filter:drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 55%, transparent)) drop-shadow(0 0 18px color-mix(in srgb, var(--pink) 35%, transparent)); opacity:.96; }
+.scan-ring::after { position:absolute; content:""; inset:11px; border-radius:50%; background:color-mix(in srgb, var(--bg) 55%, transparent); -webkit-mask:none; mask:none; filter:none; backdrop-filter:blur(6px); }
+.scan-ring-inner { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.scan-ring-inner strong { font:700 28px var(--font-mono); letter-spacing:.02em; color:var(--text); text-shadow:0 1px 12px color-mix(in srgb, var(--bg) 80%, transparent); }
+.scan-ring-inner span { color:var(--text-faint); font:600 9px var(--font-mono); letter-spacing:.14em; text-transform:uppercase; }
+.is-scanning .scan-ring { animation:spin 1.4s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .scan-visual.is-done .scan-ring { animation:done-pulse 1.1s ease-out; }
 @keyframes done-pulse {
-  0% { transform:scale(1); filter:drop-shadow(0 0 0 transparent); }
-  35% { transform:scale(1.06); filter:drop-shadow(0 0 22px color-mix(in srgb, var(--cyan) 55%, transparent)); }
-  100% { transform:scale(1); filter:drop-shadow(0 0 0 transparent); }
+  0% { transform:scale(1); }
+  35% { transform:scale(1.04); filter:drop-shadow(0 0 16px color-mix(in srgb, var(--cyan) 70%, transparent)) drop-shadow(0 0 28px color-mix(in srgb, var(--pink) 45%, transparent)); }
+  100% { transform:scale(1); }
 }
 #results-button.is-ready { animation:ready-pulse 1.2s ease-out; }
 @keyframes ready-pulse {
