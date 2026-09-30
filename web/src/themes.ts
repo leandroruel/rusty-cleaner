@@ -136,6 +136,15 @@ async function ensureInstalled(entry: ThemeRegistryEntry): Promise<AppliedTheme>
 }
 
 async function applyCard(card: ThemeCard): Promise<void> {
+  // Spin the button that was clicked so the download has visible feedback.
+  const button = document.activeElement as HTMLButtonElement | null;
+  const spinner = button?.classList.contains("theme-apply") ? button : null;
+  if (spinner) {
+    spinner.disabled = true;
+    spinner.dataset.originalLabel = spinner.textContent ?? "";
+    spinner.classList.add("theme-downloading");
+    spinner.textContent = t("themes.downloading");
+  }
   try {
     if (card.entry === null) {
       applyDefault();
@@ -150,6 +159,12 @@ async function applyCard(card: ThemeCard): Promise<void> {
     await refreshPanel();
   } catch (error) {
     showToast(String(error));
+  } finally {
+    if (spinner) {
+      spinner.classList.remove("theme-downloading");
+      spinner.textContent = spinner.dataset.originalLabel ?? "";
+      delete spinner.dataset.originalLabel;
+    }
   }
 }
 
