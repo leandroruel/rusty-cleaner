@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getLocale, setLocale, t, type Locale } from "./i18n";
 import { getElement, showToast } from "./state";
+import { refreshThemesPanel } from "./themes";
 
 const settingsButton = getElement<HTMLButtonElement>("settings-button");
 const settingsOverlay = getElement<HTMLElement>("settings-overlay");
@@ -37,6 +38,7 @@ function selectSection(target: string): void {
   const key = `settings.menu.${target}`;
   sectionTitle.dataset.i18n = key;
   sectionTitle.textContent = t(key);
+  if (target === "themes") refreshThemesPanel();
 }
 
 async function openSettings(): Promise<void> {

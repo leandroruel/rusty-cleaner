@@ -2,6 +2,8 @@ use rusty_cleaner::{
     scan,
     scanner::{Feature, Finding},
 };
+
+mod themes;
 use serde::Serialize;
 use std::{env, path::PathBuf, time::Instant};
 
@@ -450,6 +452,25 @@ fn copy_or_move(
 #[tauri::command]
 fn detect_platform() -> &'static str {
     current_platform()
+}
+
+/// Clones (or refreshes) a theme repository and returns the resolved
+/// manifest with absolute asset paths.
+#[tauri::command]
+async fn download_theme(repo: String) -> Result<themes::ResolvedTheme, String> {
+    tauri::async_runtime::spawn_blocking(move || themes::download(&repo))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+fn installed_themes() -> Vec<themes::ResolvedTheme> {
+    themes::installed()
+}
+
+#[tauri::command]
+fn delete_theme(id: String) -> Result<(), String> {
+    themes::delete(&id)
 }
 
 #[derive(Serialize)]
@@ -953,6 +974,9 @@ pub fn run() {
             open_system_protection,
             list_messenger_media,
             open_media_file,
+            download_theme,
+            installed_themes,
+            delete_theme,
             copy_media_file,
             move_media_file,
             detect_platform,

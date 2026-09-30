@@ -10,6 +10,7 @@ import { initCleaning, isConfirmOpen, closeConfirm, refreshCleaningLabels, updat
 import { initSettings, isSettingsOpen, closeSettings } from "./settings";
 import { initRestore, isRestoreOpen, closeRestore } from "./restore";
 import { initMessengerMedia, isMessengerMediaOpen, closeMessengerMedia } from "./messenger-media";
+import { initThemes, restoreAppliedTheme } from "./themes";
 import { initMonitor } from "./monitor";
 import { initUpdater } from "./updater";
 import "@fontsource/manrope/400.css";
@@ -61,6 +62,7 @@ function applyTranslations(): void {
 }
 
 loadLocale();
+void restoreAppliedTheme();
 applyTranslations();
 void applySystemTheme();
 initPages();
@@ -79,6 +81,7 @@ initSettings(() => {
 });
 initRestore();
 initMessengerMedia();
+initThemes();
 initMonitor();
 if (isTauri()) initUpdater();
 
