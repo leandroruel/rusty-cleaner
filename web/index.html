@@ -7,6 +7,14 @@
     <title>Rusty Cleaner</title>
   </head>
   <body>
+    <div class="theme-bg" id="theme-bg" hidden>
+      <img id="theme-bg-img" alt="" aria-hidden="true" />
+      <div class="theme-bg-tint" id="theme-bg-tint"></div>
+    </div>
+    <div class="sidebar-bg" id="sidebar-bg" hidden>
+      <img id="sidebar-bg-img" alt="" aria-hidden="true" />
+      <div class="sidebar-bg-tint" id="sidebar-bg-tint"></div>
+    </div>
     <div class="app-shell" id="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
@@ -508,6 +516,7 @@
         </section>
       </div>
 
+      <style id="theme-css"></style>
       <style id="theme-fonts"></style>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>

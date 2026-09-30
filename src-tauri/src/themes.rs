@@ -1,78 +1,35 @@
-//! Theme download and manifest handling. Themes live in their own git
-//! repositories; a `theme.json` at the root declares colors, background
-//! images, fonts and icons, all as paths relative to the repository.
-
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// The theme.json contract. Every color is a CSS color string; images,
-/// fonts and icons are paths inside the theme repository.
+/// Minimal theme manifest — identity, asset paths and nothing else. All
+/// styling lives in the theme's `theme.css`, which is injected verbatim into
+/// the webview. The CSS IS the theme.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ThemeManifest {
     pub id: String,
     pub name: String,
     pub version: String,
+    #[serde(default)]
     pub author: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
+    /// Main window background image (tinted by the theme.css itself).
     #[serde(default)]
-    pub colors: ThemeColors,
-    #[serde(default)]
-    pub background: ThemeSurface,
-    #[serde(default)]
-    pub sidebar: ThemeSurface,
-    #[serde(default)]
-    pub fonts: ThemeFonts,
-    #[serde(default)]
-    pub icons: ThemeIcons,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ThemeColors {
     pub background: Option<String>,
-    pub panel: Option<String>,
-    pub panel2: Option<String>,
-    pub border: Option<String>,
-    pub text: Option<String>,
-    pub text_dim: Option<String>,
-    pub text_faint: Option<String>,
-    pub accent: Option<String>,
-    pub accent_secondary: Option<String>,
-    pub purple: Option<String>,
-    pub green: Option<String>,
-    pub amber: Option<String>,
-    pub red: Option<String>,
-    pub orange: Option<String>,
-    pub blue: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ThemeSurface {
-    /// Image path relative to the theme root.
-    pub image: Option<String>,
-    /// CSS color painted over the image for readability (e.g. "rgba(0,0,0,.7)").
-    pub tint: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ThemeFonts {
-    /// Font file for interface text (.ttf/.woff2).
-    pub text: Option<String>,
-    /// Font file for monospace runs.
-    pub mono: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ThemeIcons {
-    /// Brand icon shown in the sidebar.
+    /// Sidebar background image.
+    #[serde(default)]
+    pub sidebar: Option<String>,
+    /// Brand icon in the sidebar (png/jpg/webp; SVG is unreliable in the
+    /// WebView asset protocol).
+    #[serde(default)]
     pub brand: Option<String>,
+    /// Font files to inject as @font-face (paths to .ttf/.woff2 files).
+    #[serde(default)]
+    pub fonts: Vec<String>,
 }
 
-/// A manifest with every asset path resolved to an absolute file path,
-/// ready to be served to the webview through the asset protocol.
+/// A theme with every asset resolved to an absolute path and the theme.css
+/// content ready to inject.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedTheme {
@@ -81,31 +38,22 @@ pub struct ResolvedTheme {
     pub version: String,
     pub author: Option<String>,
     pub description: Option<String>,
-    pub colors: ThemeColors,
-    pub background: ResolvedSurface,
-    pub sidebar: ResolvedSurface,
-    pub fonts: ResolvedFonts,
-    pub icons: ResolvedIcons,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolvedSurface {
-    pub image: Option<String>,
-    pub tint: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolvedFonts {
-    pub text: Option<String>,
-    pub mono: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolvedIcons {
+    /// The full theme.css content — CSS variables and custom rules.
+    pub css: String,
+    pub background: Option<String>,
+    pub sidebar: Option<String>,
     pub brand: Option<String>,
+    /// Font families declared by @font-face in the theme.css.
+    pub fonts: Vec<ResolvedFont>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedFont {
+    /// The CSS font-family name to use.
+    pub family: String,
+    /// Absolute path to the font file.
+    pub path: String,
 }
 
 pub fn themes_dir() -> PathBuf {
@@ -115,8 +63,8 @@ pub fn themes_dir() -> PathBuf {
         .join("themes")
 }
 
-/// Clones (or refreshes) a theme repository and returns its resolved
-/// manifest. The repository must be public; `git` is the download mechanism.
+/// Clones (or refreshes) a theme repository and returns the resolved theme
+/// with the theme.css content. The repository must be public.
 pub fn download(repo: &str) -> Result<ResolvedTheme, String> {
     let root = themes_dir();
     std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
@@ -149,7 +97,7 @@ pub fn download(repo: &str) -> Result<ResolvedTheme, String> {
     resolve(&target, manifest)
 }
 
-/// Lists every downloaded theme with resolved assets.
+/// Lists every downloaded theme with resolved assets and CSS content.
 pub fn installed() -> Vec<ResolvedTheme> {
     let Ok(entries) = std::fs::read_dir(themes_dir()) else {
         return Vec::new();
@@ -188,6 +136,23 @@ fn read_manifest(path: &Path) -> Result<ThemeManifest, String> {
     Ok(manifest)
 }
 
+/// Strips CSS constructs that could load external resources or execute code.
+/// The CSS comes from a git repository the user deliberately downloaded, but
+/// defense in depth still applies inside the WebView.
+fn sanitize_css(css: &str) -> String {
+    css.lines()
+        .filter(|line| {
+            let trimmed = line.trim().to_lowercase();
+            !(trimmed.starts_with("@import")
+                || trimmed.contains("javascript:")
+                || trimmed.contains("expression(")
+                || trimmed.contains("data:text/html")
+                || trimmed.starts_with("<script"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn resolve(root: &Path, manifest: ThemeManifest) -> Result<ResolvedTheme, String> {
     let absolute = |relative: &Option<String>| -> Option<String> {
         let relative = relative.as_ref()?;
@@ -201,77 +166,81 @@ fn resolve(root: &Path, manifest: ThemeManifest) -> Result<ResolvedTheme, String
         };
         path.is_file().then(|| path.to_string_lossy().into_owned())
     };
+
+    let css_path = root.join("theme.css");
+    let css = std::fs::read_to_string(&css_path).map_err(|error| format!("theme.css: {error}"))?;
+    let css = sanitize_css(&css);
+
+    // Resolve font files declared in the manifest.
+    let fonts = manifest
+        .fonts
+        .iter()
+        .filter_map(|path| {
+            let full = root.join(path);
+            if !full.is_file() {
+                return None;
+            }
+            // Derive a font-family name from the file stem.
+            let family = full
+                .file_stem()
+                .map(|stem| stem.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "ThemeFont".to_owned());
+            Some(ResolvedFont {
+                family,
+                path: full.to_string_lossy().into_owned(),
+            })
+        })
+        .collect();
+
     Ok(ResolvedTheme {
         id: manifest.id,
         name: manifest.name,
         version: manifest.version,
         author: manifest.author,
         description: manifest.description,
-        colors: manifest.colors,
-        background: ResolvedSurface {
-            image: absolute(&manifest.background.image),
-            tint: manifest.background.tint,
-        },
-        sidebar: ResolvedSurface {
-            image: absolute(&manifest.sidebar.image),
-            tint: manifest.sidebar.tint,
-        },
-        fonts: ResolvedFonts {
-            text: absolute(&manifest.fonts.text),
-            mono: absolute(&manifest.fonts.mono),
-        },
-        icons: ResolvedIcons {
-            brand: absolute(&manifest.icons.brand),
-        },
+        css,
+        background: absolute(&manifest.background),
+        sidebar: absolute(&manifest.sidebar),
+        brand: absolute(&manifest.brand),
+        fonts,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ThemeManifest;
+    use super::{sanitize_css, ThemeManifest};
 
-    const SAMPLE: &str = r##"{
+    const MANIFEST: &str = r##"{
         "id": "tokyo-afterburn",
         "name": "Tokyo Afterburn",
         "version": "1.0.0",
         "author": "leandroruel",
-        "description": "Synthwave neon night",
-        "colors": {
-            "background": "#0d0218",
-            "panel": "#170a2e",
-            "accent": "#33e0ff",
-            "accentSecondary": "#ff3df0"
-        },
-        "background": {
-            "image": "src/assets/images/background.svg",
-            "tint": "rgba(13,2,24,0.78)"
-        },
-        "icons": { "brand": "src/assets/icons/brand.svg" }
+        "background": "src/assets/images/background.png",
+        "brand": "src/assets/icons/brand.png"
     }"##;
 
     #[test]
-    fn parses_the_theme_contract() {
-        let manifest: ThemeManifest = serde_json::from_str(SAMPLE).unwrap();
+    fn parses_the_minimal_manifest() {
+        let manifest: ThemeManifest = serde_json::from_str(MANIFEST).unwrap();
         assert_eq!(manifest.id, "tokyo-afterburn");
-        assert_eq!(manifest.colors.background.as_deref(), Some("#0d0218"));
-        assert_eq!(manifest.colors.accent_secondary.as_deref(), Some("#ff3df0"));
         assert_eq!(
-            manifest.background.image.as_deref(),
-            Some("src/assets/images/background.svg")
+            manifest.background.as_deref(),
+            Some("src/assets/images/background.png")
         );
         assert_eq!(
-            manifest.icons.brand.as_deref(),
-            Some("src/assets/icons/brand.svg")
+            manifest.brand.as_deref(),
+            Some("src/assets/icons/brand.png")
         );
-        // Optional sections default to empty.
-        assert!(manifest.fonts.text.is_none());
-        assert!(manifest.sidebar.image.is_none());
+        assert!(manifest.sidebar.is_none());
+        assert!(manifest.fonts.is_empty());
     }
 
     #[test]
-    fn rejects_a_manifest_without_an_id() {
-        let text = r##"{ "id": "", "name": "Broken", "version": "0" }"##;
-        let manifest: Result<ThemeManifest, _> = serde_json::from_str(text);
-        assert!(manifest.is_ok()); // parsing succeeds; the guard rejects it later
+    fn sanitizes_dangerous_css() {
+        let dirty = ":root { --bg: red; }\n@import url('http://evil.com');\n.content { color: expression(alert(1)); }";
+        let clean = sanitize_css(dirty);
+        assert!(!clean.contains("@import"));
+        assert!(!clean.contains("expression("));
+        assert!(clean.contains("--bg: red"));
     }
 }
