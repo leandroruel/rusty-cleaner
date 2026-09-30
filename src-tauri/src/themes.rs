@@ -137,7 +137,10 @@ pub fn download(repo: &str) -> Result<ResolvedTheme, String> {
     }
 
     let manifest = read_manifest(&temp.join("theme.json"))?;
-    if manifest.id.trim().is_empty() || manifest.id.contains(['/', '\\']) || manifest.id.contains("..") {
+    if manifest.id.trim().is_empty()
+        || manifest.id.contains(['/', '\\'])
+        || manifest.id.contains("..")
+    {
         return Err(format!("invalid theme id: {}", manifest.id));
     }
     let target = root.join(&manifest.id);
