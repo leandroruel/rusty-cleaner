@@ -126,12 +126,22 @@ async function scanIssues(): Promise<void> {
 function fixIssues(): void {
   const items = registryFindings();
   if (items.length === 0) return;
-  openConfirm(t("confirm.registryFix", { count: number(items.length) }), () => {
-    fixRegistryItems(items);
-    getElement("registry-size").textContent = formatCount(0);
-    getElement("registry-detail").textContent = t("registry.noneFound");
-    updateFixButton();
-  });
+  openConfirm(
+    t("confirm.registryFix", { count: number(items.length) }),
+    () => {
+      fixRegistryItems(items);
+      getElement("registry-size").textContent = formatCount(0);
+      getElement("registry-detail").textContent = t("registry.noneFound");
+      updateFixButton();
+    },
+    {
+      label: t("card.openSystemProtection"),
+      action: () => {
+        void invoke("open_system_protection").catch((error) => showToast(String(error)));
+      },
+    },
+    { label: t("confirm.restorePointGate") },
+  );
 }
 
 export function refreshRegistryLabels(): void {

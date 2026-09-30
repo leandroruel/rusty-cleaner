@@ -13,11 +13,15 @@ const confirmText = getElement<HTMLParagraphElement>("confirm-text");
 const confirmCancel = getElement<HTMLButtonElement>("confirm-cancel");
 const confirmAccept = getElement<HTMLButtonElement>("confirm-accept");
 const confirmExtra = getElement<HTMLButtonElement>("confirm-extra");
+const confirmGate = getElement<HTMLLabelElement>("confirm-gate");
+const confirmGateCheckbox = getElement<HTMLInputElement>("confirm-gate-checkbox");
+const confirmGateLabel = getElement<HTMLSpanElement>("confirm-gate-label");
 
 let confirmAction: (() => void) | null = null;
 let extraAction: (() => void) | null = null;
 
 export type ConfirmExtra = { label: string; action: () => void };
+export type ConfirmGate = { label: string };
 
 const cleanProgressOverlay = getElement<HTMLElement>("clean-progress-overlay");
 const cleanProgressFill = getElement<HTMLElement>("clean-progress-fill");
@@ -45,6 +49,7 @@ export function openConfirm(
   message: string,
   action: () => void,
   extra?: ConfirmExtra,
+  gate?: ConfirmGate,
 ): void {
   confirmText.textContent = message;
   confirmAction = action;
@@ -55,6 +60,18 @@ export function openConfirm(
   } else {
     confirmExtra.hidden = true;
     extraAction = null;
+  }
+  if (gate) {
+    // A gate keeps the accept button disabled until the user consciously
+    // confirms a step the app cannot verify — like creating a restore
+    // point in the native Windows UI.
+    confirmGateLabel.textContent = gate.label;
+    confirmGateCheckbox.checked = false;
+    confirmGate.hidden = false;
+    confirmAccept.disabled = true;
+  } else {
+    confirmGate.hidden = true;
+    confirmAccept.disabled = false;
   }
   confirmOverlay.hidden = false;
   confirmCancel.focus();
@@ -78,6 +95,13 @@ async function closeBrowsers(): Promise<void> {
 const closeBrowsersExtra = (): ConfirmExtra => ({
   label: t("card.closeBrowsers"),
   action: () => void closeBrowsers(),
+});
+
+const systemProtectionExtra = (): ConfirmExtra => ({
+  label: t("card.openSystemProtection"),
+  action: () => {
+    void invoke("open_system_protection").catch((error) => showToast(String(error)));
+  },
 });
 
 async function trashSelected(): Promise<void> {
@@ -288,8 +312,13 @@ export function initCleaning(): void {
               cacheSize: formatBytes(cacheItems.reduce((total, item) => total + item.size, 0)),
             })
           : t("confirm.trash", { count: number(state.selectedPaths.size), size: formatBytes(size) });
-    const extra = cacheItems.length > 0 ? closeBrowsersExtra() : undefined;
-    openConfirm(message, () => void trashSelected(), extra);
+    const extra = registryOnly
+      ? systemProtectionExtra()
+      : cacheItems.length > 0
+        ? closeBrowsersExtra()
+        : undefined;
+    const gate = registryOnly ? { label: t("confirm.restorePointGate") } : undefined;
+    openConfirm(message, () => void trashSelected(), extra, gate);
   });
   emptyTrashButton.addEventListener("click", () => {
     openConfirm(t("confirm.emptyTrash"), () => void emptyTrash());
@@ -301,15 +330,21 @@ export function initCleaning(): void {
     confirmAction = null;
     confirmExtra.hidden = true;
     extraAction = null;
+    confirmGate.hidden = true;
+    confirmAccept.disabled = false;
   };
   confirmCancel.addEventListener("click", dismissConfirm);
   confirmOverlay.addEventListener("click", (event) => {
     if (event.target === confirmOverlay) dismissConfirm();
   });
   confirmExtra.addEventListener("click", () => extraAction?.());
+  confirmGateCheckbox.addEventListener("change", () => {
+    confirmAccept.disabled = !confirmGateCheckbox.checked;
+  });
   confirmAccept.addEventListener("click", () => {
     confirmOverlay.hidden = true;
     confirmExtra.hidden = true;
+    confirmGate.hidden = true;
     const action = confirmAction;
     confirmAction = null;
     extraAction = null;
@@ -332,6 +367,8 @@ export function closeConfirm(): void {
   confirmAction = null;
   confirmExtra.hidden = true;
   extraAction = null;
+  confirmGate.hidden = true;
+  confirmAccept.disabled = false;
 }
 
 export function refreshCleaningLabels(): void {

@@ -371,3 +371,7 @@ html[data-theme="omarchy"] .nav-item { border-radius:2px; }
 .clean-progress-detail { margin:12px 0 0; color:var(--text-faint); font:11px var(--font-mono); }
 
 #feature-filter option[hidden] { display:none; }
+
+.confirm-gate { display:flex; align-items:flex-start; gap:9px; margin-top:12px; color:var(--text-dim); font-size:11px; cursor:pointer; }
+.confirm-gate[hidden] { display:none; }
+.confirm-gate input { flex:none; width:14px; height:14px; margin:0; margin-top:1px; accent-color:var(--cyan); cursor:pointer; }

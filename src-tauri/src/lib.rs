@@ -250,63 +250,39 @@ fn backup_registry_keys(keys: &[String]) -> Result<String, String> {
     Ok(base.to_string_lossy().into_owned())
 }
 
-#[cfg(windows)]
-fn create_restore_point() -> Result<(), String> {
-    use std::process::Command;
-
-    // Both lifting the once-per-24h restore-point throttle and creating the
-    // checkpoint need elevation; a single UAC prompt covers them. The
-    // throttle is a system-wide policy, so the previous value is recorded
-    // and restored afterwards instead of being permanently zeroed.
-    let inner = r"$ErrorActionPreference = 'Stop'; $policy = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'; $previous = (Get-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue).SystemRestorePointCreationFrequency; Set-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord; try { Checkpoint-Computer -Description 'Rusty Cleaner registry fix' -RestorePointType MODIFY_SETTINGS } finally { if ($null -ne $previous) { Set-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -Value $previous -Type DWord } else { Remove-ItemProperty -Path $policy -Name SystemRestorePointCreationFrequency -ErrorAction SilentlyContinue } }; exit 0";
-    let encoded = base64_utf16(inner);
-    let outer = format!(
-        "try {{ $p = Start-Process -Verb RunAs -Wait -PassThru -FilePath powershell.exe \
--ArgumentList @('-NoProfile','-EncodedCommand','{encoded}'); exit $p.ExitCode }} catch {{ exit 2 }}"
-    );
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &outer])
-        .output()
-        .map_err(|error| format!("failed to launch powershell: {error}"))?;
-    match output.status.code() {
-        Some(0) => Ok(()),
-        Some(2) => {
-            Err("the restore point needs elevation and the UAC prompt was declined".to_owned())
-        }
-        _ => {
-            Err("system restore point could not be created (is System Restore enabled?)".to_owned())
-        }
-    }
-}
-
-/// PowerShell's -EncodedCommand expects UTF-16LE bytes in standard base64.
-#[cfg(any(windows, test))]
-fn base64_utf16(text: &str) -> String {
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let bytes: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
-    let mut encoded = String::new();
-    for chunk in bytes.chunks(3) {
-        let triple = [
-            chunk[0],
-            chunk.get(1).copied().unwrap_or(0),
-            chunk.get(2).copied().unwrap_or(0),
-        ];
-        let bits =
-            (u32::from(triple[0]) << 16) | (u32::from(triple[1]) << 8) | u32::from(triple[2]);
-        encoded.push(ALPHABET[(bits >> 18 & 63) as usize] as char);
-        encoded.push(ALPHABET[(bits >> 12 & 63) as usize] as char);
-        encoded.push(if chunk.len() > 1 {
-            ALPHABET[(bits >> 6 & 63) as usize] as char
+/// Opens the Windows "Create a restore point" applet — the same screen as
+/// searching for "create a restore point" in Start. Creating the point stays
+/// a conscious user action inside the native UI: no hidden elevation, no
+/// PowerShell cascade, no system policy side effects.
+#[tauri::command]
+fn open_system_protection() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let windir = env::var_os("WINDIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+        // A 32-bit build on 64-bit Windows has System32 redirected to
+        // SysWOW64; Sysnative reaches the real directory.
+        let exe = if cfg!(target_pointer_width = "32") {
+            windir.join(r"Sysnative\SystemPropertiesProtection.exe")
         } else {
-            '='
-        });
-        encoded.push(if chunk.len() > 2 {
-            ALPHABET[(bits & 63) as usize] as char
-        } else {
-            '='
-        });
+            windir.join(r"System32\SystemPropertiesProtection.exe")
+        };
+        std::process::Command::new(&exe)
+            .spawn()
+            .map(|_| ())
+            .or_else(|_| {
+                std::process::Command::new("control")
+                    .args(["sysdm.cpl,,4"])
+                    .spawn()
+                    .map(|_| ())
+            })
+            .map_err(|error| error.to_string())
     }
-    encoded
+    #[cfg(not(windows))]
+    {
+        Err("System Protection is only available on Windows".to_owned())
+    }
 }
 
 #[derive(Serialize)]
@@ -434,14 +410,13 @@ async fn fix_registry_issues(
             .map(|item| (item.key, item.value))
             .collect();
         // Mandatory safety net: every key about to be modified is exported
-        // to a .reg backup and a system restore point is taken — the fix
-        // refuses to run when either step fails.
+        // to a .reg backup; the fix refuses to run if any export fails. The
+        // restore point is a conscious step in the UI (open System
+        // Protection, then confirm) — never a hidden elevated side effect.
         #[cfg(windows)]
         let backup_path = {
             let keys: Vec<String> = targets.iter().map(|(key, _)| key.clone()).collect();
-            let backup_dir = backup_registry_keys(&keys)?;
-            create_restore_point()?;
-            Some(backup_dir)
+            Some(backup_registry_keys(&keys)?)
         };
         #[cfg(not(windows))]
         let backup_path = None;
@@ -833,6 +808,7 @@ pub fn run() {
             uninstall_application,
             purge_cache_dirs,
             close_browsers,
+            open_system_protection,
             detect_platform,
             detect_theme,
             trash_candidates,
@@ -857,14 +833,6 @@ pub fn run() {
 mod tests {
     use super::has_omarchy_marker;
     use std::{fs, path::PathBuf, time::SystemTime};
-
-    #[test]
-    fn encodes_powershell_commands_as_utf16_base64() {
-        // "ABC" in UTF-16LE is 41 00 42 00 43 00, which base64s to QQBCAEMA.
-        assert_eq!(super::base64_utf16("ABC"), "QQBCAEMA");
-        assert_eq!(super::base64_utf16(""), "");
-        assert_eq!(super::base64_utf16("A"), "QQA=");
-    }
 
     #[test]
     fn detects_an_omarchy_marker_without_using_the_arch_distro_id() {
