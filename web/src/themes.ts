@@ -42,6 +42,19 @@ export type AppliedTheme = {
   icons: { brand: string | null };
 };
 
+/// Converts a hex color to rgba with the given alpha, so background
+/// images can show through semi-transparent panels.
+function withAlpha(color: string | null | undefined, alpha: number): string | null {
+  if (!color) return null;
+  if (color.startsWith("rgba")) return color;
+  const match = color.match(/^#([0-9a-f]{6})$/i);
+  if (!match) return color;
+  const r = parseInt(match[1].slice(0, 2), 16);
+  const g = parseInt(match[1].slice(2, 4), 16);
+  const b = parseInt(match[1].slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const STORAGE_KEY = "rusty-cleaner-theme";
 const REMOTE_REGISTRY =
   "https://raw.githubusercontent.com/leandroruel/rusty-cleaner/main/web/themes.json";
@@ -89,8 +102,17 @@ export function applyTheme(theme: AppliedTheme): void {
     ["--orange", theme.colors.orange],
     ["--blue", theme.colors.blue],
   ];
+  // With a background image, panels must be semi-transparent for it to
+  // show through — an opaque panel hides the image completely.
+  const hasBackground = Boolean(theme.background.image);
+  const panelAlpha = hasBackground ? 0.87 : 1;
   for (const [variable, value] of colors) {
-    if (value) root.style.setProperty(variable, value);
+    if (!value) continue;
+    if (hasBackground && (variable === "--panel" || variable === "--panel-2")) {
+      root.style.setProperty(variable, withAlpha(value, panelAlpha) ?? value);
+    } else {
+      root.style.setProperty(variable, value);
+    }
   }
 
   const surface = (image: string | null, tint: string | null): string => {
@@ -137,7 +159,10 @@ export function applyTheme(theme: AppliedTheme): void {
 
   const brand = document.getElementById("brand-icon") as HTMLImageElement | null;
   if (brand) {
-    if (theme.icons.brand) {
+    // SVG files are unreliable through the asset protocol in some WebViews;
+    // only raster icons are safe to swap in.
+    const isRaster = theme.icons.brand?.match(/\.(png|jpe?g|webp|ico)$/i);
+    if (theme.icons.brand && isRaster) {
       brand.dataset.defaultSrc = brand.dataset.defaultSrc ?? brand.src;
       brand.src = convertFileSrc(theme.icons.brand);
     } else if (brand.dataset.defaultSrc) {
