@@ -52,6 +52,9 @@ export async function runScan(): Promise<void> {
   state.findings = [];
   state.selectedPaths.clear();
   state.activeFilter = "all";
+  getElement("scan-visual").classList.remove("is-done");
+  resultsButton.classList.remove("is-ready");
+  getElement("total-size").textContent = "0 B";
   getElement<HTMLSelectElement>("feature-filter").value = "all";
   failedScans = [];
   renderFailedScans();
@@ -104,10 +107,40 @@ export async function runScan(): Promise<void> {
     scanButtonLabel.textContent = t("scan.again");
     getElement("scan-visual").classList.remove("is-scanning");
   }
+
+  if (state.scanCancelled) return;
+  revealScanResult();
+}
+
+/// The completion moment: the ring pulses, the hero number counts up from
+/// zero and the results button glows once — before this the scan ended with
+/// everything snapping into place at once.
+function revealScanResult(): void {
+  const totalSize = state.findings.reduce((total, item) => total + item.size, 0);
+  if (state.findings.length > 0) {
+    getElement("scan-visual").classList.add("is-done");
+    if (!resultsButton.disabled) resultsButton.classList.add("is-ready");
+  }
+  const element = getElement("total-size");
+  if (
+    totalSize <= 0 ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    element.textContent = formatBytes(totalSize);
+    return;
+  }
+  const duration = 900;
+  const started = performance.now();
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - started) / duration);
+    const eased = 1 - (1 - progress) ** 3;
+    element.textContent = formatBytes(Math.round(totalSize * eased));
+    if (progress < 1) window.requestAnimationFrame(tick);
+  };
+  window.requestAnimationFrame(tick);
 }
 
 function renderSummary(): void {
-  const totalSize = state.findings.reduce((total, item) => total + item.size, 0);
   const counts = new Map<FeatureKey, { count: number; size: number }>();
   const messengerCounts = { telegram: 0, discord: 0, whatsapp: 0, signal: 0, slack: 0, element: 0 };
   for (const item of state.findings) {
@@ -125,8 +158,6 @@ function renderSummary(): void {
       if (path.includes("element")) messengerCounts.element += 1;
     }
   }
-
-  getElement("total-size").textContent = formatBytes(totalSize);
 
   const browser = counts.get("browser") ?? { count: 0, size: 0 };
   getElement("browser-size").textContent = formatBytes(browser.size);
