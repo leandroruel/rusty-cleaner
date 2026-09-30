@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { t } from "./i18n";
-import { getElement, showToast } from "./state";
+import { formatBytes, getElement, showToast } from "./state";
 import bundledRegistry from "../themes.json";
 
 /// A theme entry from the rusty-cleaner registry.
@@ -21,6 +21,7 @@ export type AppliedTheme = {
   description: string | null;
   css: string;
   root: string;
+  size: number;
   brand: string | null;
   fonts: { family: string; path: string }[];
 };
@@ -228,8 +229,10 @@ function renderCard(card: ThemeCard, list: HTMLElement): void {
   name.textContent = card.entry ? card.entry.name : t("themes.defaultName");
   const author = document.createElement("span");
   author.className = "theme-card-author";
+  const versionLabel = card.theme ? ` · v${card.theme.version}` : "";
+  const sizeLabel = card.theme ? ` · ${formatBytes(card.theme.size)}` : "";
   author.textContent = card.entry
-    ? `${card.entry.author}${card.theme ? ` · v${card.theme.version}` : ""}`
+    ? `${card.entry.author}${versionLabel}${sizeLabel}`
     : t("themes.defaultAuthor");
   const description = document.createElement("span");
   description.className = "theme-card-description";

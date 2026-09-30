@@ -29,7 +29,29 @@ pub struct ThemeManifest {
 }
 
 /// A theme with every asset resolved to an absolute path and the theme.css
-/// content ready to inject.
+/// content ready to inject. Includes the theme's size on disk.
+/// Total size of a directory tree, including .git.
+fn dir_size(path: &Path, depth: usize) -> u64 {
+    if depth > 8 {
+        return 0;
+    }
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    let mut total = 0;
+    for entry in entries.flatten() {
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        if metadata.is_file() {
+            total += metadata.len();
+        } else if metadata.is_dir() {
+            total += dir_size(&entry.path(), depth + 1);
+        }
+    }
+    total
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedTheme {
@@ -38,6 +60,8 @@ pub struct ResolvedTheme {
     pub version: String,
     pub author: Option<String>,
     pub description: Option<String>,
+    /// Total bytes of the theme directory on disk.
+    pub size: u64,
     /// The full theme.css content — CSS variables and custom rules.
     pub css: String,
     /// Absolute path to the theme directory, used by the frontend to
@@ -201,6 +225,7 @@ fn resolve(root: &Path, manifest: ThemeManifest) -> Result<ResolvedTheme, String
         version: manifest.version,
         author: manifest.author,
         description: manifest.description,
+        size: dir_size(root, 0),
         css,
         root: root.to_string_lossy().into_owned(),
         background: absolute(&manifest.background),
