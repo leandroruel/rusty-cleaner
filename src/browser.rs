@@ -280,13 +280,19 @@ fn quit_process(process: &str) -> bool {
 
 #[cfg(test)]
 mod browser_quit_tests {
-    use super::{quit_running_browsers, BROWSERS};
+    use super::BROWSERS;
 
     #[test]
-    fn reports_every_known_browser_without_panicking() {
-        let closed = quit_running_browsers();
-        assert_eq!(closed.len(), 5);
-        assert!(closed.iter().all(|browser| !browser.name.is_empty()));
+    fn lists_every_browser_with_process_names() {
+        // quit_running_browsers performs REAL process termination — pkill,
+        // taskkill, the Windows interop under WSL — so tests may never call
+        // it: a careless test here has closed a developer's actual browser.
+        // Only the static browser table is asserted on.
+        assert_eq!(BROWSERS.len(), 5);
+        for (name, processes) in BROWSERS {
+            assert!(!name.is_empty());
+            assert!(!processes.is_empty());
+        }
     }
 
     #[test]
