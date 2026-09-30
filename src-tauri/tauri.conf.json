@@ -27,6 +27,10 @@
         "enable": true,
         "scope": [
           "$HOME/**",
+          "$HOME/.local/share/rusty-cleaner/themes/**",
+          "$DATA/rusty-cleaner/themes/**",
+          "$APPDATA/rusty-cleaner/themes/**",
+          "$LOCALDATA/rusty-cleaner/themes/**",
           "/mnt/c/**",
           "/usr/share/icons/**",
           "/usr/share/pixmaps/**",
