@@ -295,7 +295,6 @@ export async function restoreAppliedTheme(): Promise<void> {
 
 export function initThemes(): void {
   void restoreAppliedTheme();
-  getElement("themes-refresh").addEventListener("click", () => void refreshPanel());
   void refreshPanel();
 }
 
