@@ -495,3 +495,17 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .ai-help-step { display:flex; flex-direction:column; gap:3px; }
 .ai-help-step strong { color:var(--text); font-size:11px; }
 .ai-help-step span { color:var(--text-dim); font-size:10px; line-height:1.5; }
+
+/* AI settings: disabled state for all card controls */
+.settings-card-control input:disabled,
+.settings-card-control select:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text-faint);
+}
+.settings-card-control input:disabled::placeholder { color: var(--text-faint); }
+.settings-switch input:disabled + .settings-switch-track { opacity: 0.38; cursor: not-allowed; background: #2a2d3a; }
+.settings-switch input:disabled + .settings-switch-track::after { background: var(--text-faint); }
+.settings-card:has(.settings-card-control:disabled) .settings-card-info { opacity: 0.55; }
