@@ -130,22 +130,30 @@ async function generateBriefing(): Promise<void> {
   const briefingBody = getElement("ai-briefing-body");
   briefingBody.textContent = "…";
   card.hidden = false;
+  const counts = new Map<string, { count: number; size: number }>();
+  for (const item of state.findings) {
+    const current = counts.get(item.feature) ?? { count: 0, size: 0 };
+    current.count += 1;
+    current.size += item.size;
+    counts.set(item.feature, current);
+  }
+  const summary = [...counts.entries()]
+    .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
+    .join("; ");
+
   try {
-    const counts = new Map<string, { count: number; size: number }>();
-    for (const item of state.findings) {
-      const current = counts.get(item.feature) ?? { count: 0, size: 0 };
-      current.count += 1;
-      current.size += item.size;
-      counts.set(item.feature, current);
-    }
-    const summary = [...counts.entries()]
-      .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
-      .join("; ");
     const briefing = await scanBriefing(summary);
     getElement("ai-briefing-title").textContent = briefing.headline;
     briefingBody.textContent = briefing.bullets.join(" ");
   } catch {
-    card.hidden = true;
+    // Local fallback: generate a briefing without the model.
+    const total = state.findings.reduce((sum, item) => sum + item.size, 0);
+    const totalMiB = (total / 1_048_576).toFixed(0);
+    getElement("ai-briefing-title").textContent = t("scan.summary", {
+      count: formatCount(state.findings.length),
+      time: "0",
+    });
+    briefingBody.textContent = `${totalMiB} MiB across ${counts.size} categories — ${summary}`;
   }
 }
 

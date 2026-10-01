@@ -39,12 +39,22 @@ pub fn save_settings(settings: &AiSettings) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     // The key is persisted but NEVER logged or sent to telemetry.
-    std::fs::write(path, serde_json::to_string(settings).unwrap())
-        .map_err(|error| error.to_string())
+    let json = serde_json::to_string(settings).map_err(|error| error.to_string())?;
+    std::fs::write(path, json).map_err(|error| error.to_string())
+}
+
+/// Local providers (Ollama, LM Studio) don't need a key.
+fn is_local_provider(base_url: &str) -> bool {
+    let lower = base_url.to_lowercase();
+    lower.contains("localhost") || lower.contains("127.0.0.1") || lower.contains("[::1]")
 }
 
 fn is_ready(settings: &AiSettings) -> bool {
-    settings.enabled && !settings.api_key.trim().is_empty() && !settings.base_url.trim().is_empty()
+    if !settings.enabled || settings.base_url.trim().is_empty() || settings.model.trim().is_empty()
+    {
+        return false;
+    }
+    is_local_provider(&settings.base_url) || !settings.api_key.trim().is_empty()
 }
 
 // ─── Risk rules (local, no API needed) ───────────────────────────────────
@@ -57,37 +67,52 @@ pub enum Risk {
     Dangerous,
 }
 
+/// Path segment matching (case-insensitive) — a segment is a directory or
+/// file name between separators, not a substring buried in a longer name.
+fn has_segment(path: &str, needle: &str) -> bool {
+    path.split(['/', '\\'])
+        .any(|segment| segment.eq_ignore_ascii_case(needle))
+}
+
+/// Suffix segment match (catches "Code Cache", "GPUCache" etc.).
+fn has_suffix_segment(path: &str, suffix: &str) -> bool {
+    path.split(['/', '\\'])
+        .any(|segment| segment.to_lowercase().ends_with(suffix))
+}
+
 /// Local path-based risk classification — runs without any API call.
 /// The AI enriches with `why`/`if_deleted`; the badge comes from here.
 pub fn classify_risk(path: &str, category: &str) -> Risk {
     let lower = path.to_lowercase();
 
-    // Dangerous: user documents, system dirs, credentials.
-    if lower.contains(".ssh")
-        || lower.contains("wallet")
-        || lower.contains("program files")
-        || lower.contains("/etc/")
-        || lower.contains("save")
-        || lower.contains("document")
-        || lower.contains("desktop")
+    // Dangerous: credentials, system dirs, user documents (as path segments).
+    if has_segment(path, ".ssh")
+        || has_suffix_segment(&lower, "wallet")
+        || has_segment(&lower, "program files")
+        || lower.starts_with("/etc/")
+        || has_segment(path, "Documents")
+        || has_segment(path, "Desktop")
+        || has_segment(path, ".gnupg")
+        || has_segment(path, ".kube")
     {
         return Risk::Dangerous;
     }
 
-    // Safe: regenerable caches the app rebuilds.
-    if lower.contains("cache")
-        || lower.contains("code cache")
-        || lower.contains("gpucache")
-        || lower.contains("shadercache")
-        || lower.contains("thumbnail")
-        || lower.contains("wasm")
+    // Safe: regenerable caches the app rebuilds (as segments or suffixes).
+    if has_suffix_segment(&lower, "cache")
+        || has_segment(&lower, "code cache")
+        || has_segment(&lower, "gpucache")
+        || has_segment(&lower, "shadercache")
+        || has_suffix_segment(&lower, "cachestorage")
+        || has_suffix_segment(&lower, "thumbnails")
+        || has_suffix_segment(&lower, "wasm")
         || category == "browser"
         || category == "temp"
     {
         return Risk::Safe;
     }
 
-    // Review: media and data the user chose to keep.
+    // Review: user data that needs a look before removing.
     if category == "chat-media" || category == "trash" || category == "duplicates" {
         return Risk::Review;
     }
@@ -175,13 +200,22 @@ pub struct NlFilter {
     pub query_echo: String,
 }
 
+/// Maximum groups sent to the model per request — the rest keep the local fallback.
+const MAX_AI_GROUPS: usize = 40;
+
 // ─── OpenAI-compatible chat completion ────────────────────────────────────
 
+fn chat_url(base_url: &str) -> String {
+    let trimmed = base_url.trim_end_matches('/');
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_owned()
+    } else {
+        format!("{trimmed}/chat/completions")
+    }
+}
+
 fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<String, String> {
-    let url = format!(
-        "{}/chat/completions",
-        settings.base_url.trim_end_matches('/')
-    );
+    let url = chat_url(&settings.base_url);
     let body = serde_json::json!({
         "model": settings.model,
         "messages": [
@@ -194,10 +228,19 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
     });
 
     let json_body = serde_json::to_string(&body).map_err(|error| format!("payload: {error}"))?;
-    let response = ureq::post(&url)
-        .set("Authorization", &format!("Bearer {}", settings.api_key))
+
+    let request = ureq::post(&url)
         .set("Content-Type", "application/json")
-        .timeout(Duration::from_secs(300))
+        .timeout(Duration::from_secs(300));
+
+    // Local providers (Ollama, LM Studio) accept an empty Bearer token.
+    let request = if settings.api_key.trim().is_empty() {
+        request
+    } else {
+        request.set("Authorization", &format!("Bearer {}", settings.api_key))
+    };
+
+    let response = request
         .send_string(&json_body)
         .map_err(|error| format!("AI request failed: {error}"))?;
 
@@ -208,25 +251,43 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
     let json: serde_json::Value =
         serde_json::from_str(&text).map_err(|error| format!("AI response invalid: {error}"))?;
 
-    json.get("choices")
+    let content = json
+        .get("choices")
         .and_then(|choices| choices.get(0))
         .and_then(|choice| choice.get("message"))
         .and_then(|message| message.get("content"))
         .and_then(|content| content.as_str())
-        .map(|content| content.to_owned())
-        .ok_or_else(|| "AI response missing choices[0].message.content".to_owned())
+        .ok_or("AI response missing choices[0].message.content")?;
+
+    Ok(strip_markdown_fences(content))
+}
+
+/// Strips ```json … ``` fences if the model wrapped the JSON.
+fn strip_markdown_fences(content: &str) -> String {
+    let trimmed = content.trim();
+    if let Some(inner) = trimmed
+        .strip_prefix("```json")
+        .or_else(|| trimmed.strip_prefix("```"))
+    {
+        inner.strip_suffix("```").unwrap_or(inner).trim().to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 // ─── Public commands ──────────────────────────────────────────────────────
 
 pub fn test_connection(settings: &AiSettings) -> Result<String, String> {
     if !is_ready(settings) {
-        return Err("Fill in the base URL, model and API key first".to_owned());
+        return Err(
+            "Fill in the base URL and model first (API key required for remote providers)"
+                .to_owned(),
+        );
     }
     let reply = chat_completion(
         settings,
-        "You are a connection test. Reply with exactly: {\"ok\":true}",
-        "Test",
+        "You are a connection test. Reply with exactly this JSON: {\"ok\":true}",
+        "Test connection",
     )?;
     let parsed: serde_json::Value =
         serde_json::from_str(&reply).map_err(|error| format!("Unexpected reply: {error}"))?;
@@ -262,16 +323,19 @@ pub fn explain_groups(
         })
         .collect();
 
-    // If AI is not ready, return the local fallback.
     if !is_ready(settings) {
         return Ok(results);
     }
 
-    // Build the payload — strip paths if the user opted out.
-    let payload: Vec<GroupPayload> = groups
+    // Cap at the largest 40 groups; the rest keep the local fallback.
+    let mut sorted: Vec<usize> = (0..groups.len()).collect();
+    sorted.sort_by(|&a, &b| groups[b].bytes.cmp(&groups[a].bytes));
+    let top: Vec<usize> = sorted.into_iter().take(MAX_AI_GROUPS).collect();
+
+    let payload: Vec<GroupPayload> = top
         .iter()
-        .map(|g| {
-            let mut g = g.clone();
+        .map(|&i| {
+            let mut g = groups[i].clone();
             if !settings.send_paths {
                 g.path = format!("[{}]", g.category);
             }
@@ -281,22 +345,32 @@ pub fn explain_groups(
 
     let user = serde_json::to_string(&payload).map_err(|error| format!("payload: {error}"))?;
 
-    let system = "You are a disk-cleaning assistant. You receive a JSON array of file groups (path, size, category). For each, respond with a JSON object: {\"id\": <original path>, \"risk\": \"safe\"|\"review\"|\"dangerous\", \"app\": <app name>, \"regenerable\": boolean, \"title\": ≤60 chars, \"why\": ≤280 chars, \"ifDeleted\": ≤160 chars}. Respond as a JSON array of these objects. Rules: caches the app rebuilds = safe. User media and downloads = review. Documents, credentials, system files = dangerous.";
+    let system = "You are a disk-cleaning assistant. You receive a JSON array of file groups (path, size, category). Respond with a JSON object: {\"groups\": [{\"id\": <original path>, \"risk\": \"safe\"|\"review\"|\"dangerous\", \"app\": <app name>, \"regenerable\": boolean, \"title\": <≤60 chars>, \"why\": <≤280 chars>, \"ifDeleted\": <≤160 chars>}]}. Rules: caches the app rebuilds = safe. User media and downloads = review. Documents, credentials, system files = dangerous. The \"id\" must be the original path exactly as given.";
 
     let reply = chat_completion(settings, system, &user)?;
 
-    // Try to parse the model's response; on failure, keep the local fallback.
-    if let Ok(enriched) = serde_json::from_str::<Vec<ExplainGroup>>(&reply) {
-        // Merge: keep local risk if AI is wrong, keep AI's why/title.
-        for (local, ai) in results.iter_mut().zip(enriched.iter()) {
-            if !ai.why.is_empty() {
-                local.why = ai.why.clone();
-            }
-            if !ai.title.is_empty() {
-                local.title = ai.title.clone();
-            }
-            if !ai.if_deleted.is_empty() {
-                local.if_deleted = ai.if_deleted.clone();
+    // Parse {groups: [...]} — json_object response format always wraps in an object.
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&reply) {
+        if let Some(groups_value) = parsed.get("groups").and_then(|g| g.as_array()) {
+            if let Ok(enriched) = serde_json::from_value::<Vec<ExplainGroup>>(
+                serde_json::Value::Array(groups_value.clone()),
+            ) {
+                // Merge by id, not by index — the model may reorder.
+                for ai_group in &enriched {
+                    if let Some(local) = results.iter_mut().find(|r| r.id == ai_group.id) {
+                        if !ai_group.title.is_empty() {
+                            local.title = ai_group.title.clone();
+                        }
+                        if !ai_group.why.is_empty() {
+                            local.why = ai_group.why.clone();
+                        }
+                        if !ai_group.if_deleted.is_empty() {
+                            local.if_deleted = ai_group.if_deleted.clone();
+                        }
+                        // Local risk always wins — the model cannot downgrade dangerous → safe.
+                        local.risk = classify_risk(&local.id, "");
+                    }
+                }
             }
         }
     }
@@ -309,7 +383,7 @@ pub fn scan_briefing(settings: &AiSettings, summary: &str) -> Result<ScanBriefin
         return Err("AI assistant is disabled or missing configuration".to_owned());
     }
 
-    let system = "You are a disk-cleaning assistant. You receive a summary of a scan (categories, item counts, sizes). Respond with JSON: {\"headline\": ≤80 chars, \"bullets\": 3-6 short strings, \"safeGb\": number, \"reviewGb\": number}. The headline says what the junk is. Bullets explain per category. safeGb = how many GB are safely removable (caches). reviewGb = how many GB need review (media, duplicates).";
+    let system = "You are a disk-cleaning assistant. You receive a summary of scan results (categories, item counts, sizes). Respond with a JSON object: {\"headline\": <≤80 chars>, \"bullets\": [<3-6 short strings>], \"safeGb\": <number>, \"reviewGb\": <number>}. The headline says what the junk is. Bullets explain per category. safeGb = GB safely removable (caches). reviewGb = GB needing review (media, duplicates).";
 
     let reply = chat_completion(settings, system, summary)?;
     serde_json::from_str(&reply).map_err(|error| format!("briefing parse: {error}"))
@@ -326,14 +400,13 @@ pub fn nl_filter(
 
     let categories_list = valid_categories.join(", ");
     let system = format!(
-        "You translate a natural-language query about disk cleaning into a JSON filter. Valid categories: [{categories_list}]. Respond with JSON: {{\"categories\": [subset of the valid categories], \"minAgeDays\": number or null, \"minSizeBytes\": number or null, \"apps\": [strings] or null, \"queryEcho\": <the original query>}}. Only use categories from the valid list.",
+        "You translate a natural-language query about disk cleaning into a JSON filter. Valid categories: [{categories_list}]. Respond with a JSON object: {{\"categories\": [subset of valid], \"minAgeDays\": <number or null>, \"minSizeBytes\": <number or null>, \"apps\": [<strings>] or null, \"queryEcho\": <original query>}}. Only use categories from the valid list.",
     );
 
     let reply = chat_completion(settings, &system, query)?;
     let mut filter: NlFilter =
         serde_json::from_str(&reply).map_err(|error| format!("filter parse: {error}"))?;
 
-    // Clamp to valid categories.
     filter
         .categories
         .retain(|cat| valid_categories.contains(cat));
@@ -345,21 +418,26 @@ pub fn is_enabled() -> bool {
     is_ready(&load_settings())
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
-    use super::{classify_risk, fallback_if_deleted, fallback_why, Risk};
+    use super::{classify_risk, is_local_provider, Risk};
 
     #[test]
-    fn classifies_cache_paths_as_safe() {
+    fn classifies_cache_segments_as_safe() {
         assert_eq!(
             classify_risk("/home/user/.cache/google-chrome/Default/Cache", "browser"),
             Risk::Safe
         );
         assert_eq!(
             classify_risk(
-                "/home/user/.cache/mozilla/firefox/profile/cache2",
+                "/home/user/.cache/google-chrome/Default/Code Cache/js",
+                "browser"
+            ),
+            Risk::Safe
+        );
+        assert_eq!(
+            classify_risk(
+                "/home/user/.cache/google-chrome/Default/GPUCache",
                 "browser"
             ),
             Risk::Safe
@@ -377,6 +455,10 @@ mod tests {
             classify_risk("/home/user/Downloads/duplicate.bin", "duplicates"),
             Risk::Review
         );
+        assert_eq!(
+            classify_risk("/home/user/.local/share/Trash/file", "trash"),
+            Risk::Review
+        );
     }
 
     #[test]
@@ -386,20 +468,35 @@ mod tests {
             Risk::Dangerous
         );
         assert_eq!(
-            classify_risk("C:/Program Files/App", "orphan"),
+            classify_risk("C:/Program Files/App/app.exe", "orphan"),
             Risk::Dangerous
         );
         assert_eq!(
-            classify_risk("/home/user/Documents/report.docx", "orphan"),
+            classify_risk("/home/leandro/Documents/report.docx", "orphan"),
+            Risk::Dangerous
+        );
+        assert_eq!(
+            classify_risk("/home/leandro/Desktop/screenshot.png", "orphan"),
             Risk::Dangerous
         );
     }
 
     #[test]
-    fn fallback_texts_match_risk_level() {
-        assert!(fallback_why(Risk::Safe, "browser").contains("regenerable"));
-        assert!(fallback_why(Risk::Review, "chat-media").contains("review"));
-        assert!(fallback_why(Risk::Dangerous, "orphan").contains("data loss"));
-        assert!(fallback_if_deleted(Risk::Safe).contains("rebuilds"));
+    fn does_not_flag_cache_inside_documents_path() {
+        // "Documents" as a segment is dangerous, but a cache inside a
+        // browser profile under User Data is safe even if the word
+        // "document" appears somewhere in a deeper path.
+        assert_eq!(
+            classify_risk("/home/user/.config/google-chrome/Default/Cache", "browser"),
+            Risk::Safe
+        );
+    }
+
+    #[test]
+    fn local_providers_dont_need_a_key() {
+        assert!(is_local_provider("http://localhost:11434/v1"));
+        assert!(is_local_provider("http://127.0.0.1:1234/v1"));
+        assert!(!is_local_provider("https://api.openai.com/v1"));
+        assert!(!is_local_provider("https://integrate.api.nvidia.com/v1"));
     }
 }

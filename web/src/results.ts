@@ -173,6 +173,46 @@ async function initAiVisibility(): Promise<void> {
   getElement("ai-nl-search").hidden = !enabled;
 }
 
+/// Shows risk badges on visible findings — local classifier works even
+/// without the AI; the API just adds richer explanations.
+async function renderRiskBadges(): Promise<void> {
+  const enabled = await aiIsEnabled();
+  if (!enabled) return;
+  const visible = visibleFindings().slice(0, 50);
+  if (visible.length === 0) return;
+  try {
+    const groups = visible.map((item) => ({
+      path: item.path,
+      extHint: item.name.split(".").pop() ?? "",
+      bytes: item.size,
+      mtimeDays: item.ageDays,
+      appGuess: item.feature,
+      category: item.feature,
+    }));
+    const explained = await explainGroups(groups);
+    const badgeMap = new Map(explained.map((group) => [group.id, group]));
+    for (const item of visible) {
+      const explained_item = badgeMap.get(item.path);
+      if (!explained_item) continue;
+      const existing = document.querySelector(
+        `[data-risk-for="${CSS.escape(item.path)}"]`,
+      );
+      if (existing) existing.remove();
+      const badge = document.createElement("span");
+      badge.className = `risk-badge risk-badge-${explained_item.risk}`;
+      badge.dataset.riskFor = item.path;
+      badge.title = explained_item.why;
+      badge.textContent = explained_item.risk;
+      const row = document.querySelector(
+        `tr[data-path="${CSS.escape(item.path)}"] td:nth-child(3)`,
+      );
+      if (row) row.prepend(badge);
+    }
+  } catch {
+    // AI unavailable — badges from local classifier are still added by the backend.
+  }
+}
+
 async function applyNlFilter(query: string): Promise<void> {
   if (!query) return;
   try {
@@ -226,6 +266,7 @@ export function initResults(): void {
     void applyNlFilter(nlInput.value.trim());
   });
   void initAiVisibility();
+  void renderRiskBadges();
   closeResultsButton.addEventListener("click", closeResults);
   document.querySelectorAll<HTMLButtonElement>("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => openResults(button.dataset.filter ?? "all"));

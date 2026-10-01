@@ -280,9 +280,10 @@ export function initSettings(onLocaleChange: () => void): void {
   aiProviderPreset.addEventListener("change", () => {
     if (!aiProviderPreset.value) return;
     aiBaseUrl.value = aiProviderPreset.value;
-    aiModel.value = "";
-    aiApiKey.value = "";
-    aiModel.placeholder = aiProviderPreset.selectedOptions[0]?.dataset.modelHint ?? "gpt-4o-mini";
+    const hint = aiProviderPreset.selectedOptions[0]?.dataset.modelHint;
+    if (hint && !aiModel.value.trim()) {
+      aiModel.placeholder = hint;
+    }
     void saveAi();
   });
   aiTestButton.addEventListener("click", () => void testAi());
