@@ -246,7 +246,7 @@ tbody tr:hover { background:rgba(255,255,255,.018); }
 .settings-content { display:flex; min-width:0; min-height:0; flex-direction:column; }
 .settings-content-head { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; padding:12px 18px; border-bottom:1px solid var(--border); }
 .settings-content-head h2 { font-size:14px; }
-.settings-panels { flex:1; min-height:0; overflow:auto; padding:18px; scrollbar-width:thin; }
+.settings-panels { flex:1; min-height:0; overflow:auto; padding:18px 24px 18px 18px; scrollbar-width:thin; }
 .settings-panel { width:100%; }
 .settings-panel[hidden] { display:none; }
 .about-row { margin-bottom:12px; }
@@ -456,3 +456,5 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .settings-switch input:checked + .settings-switch-track { background:var(--cyan); }
 .settings-switch input:checked + .settings-switch-track::after { transform:translateX(18px); background:#fff; }
 .settings-switch input:focus-visible + .settings-switch-track { outline:2px solid var(--cyan); outline-offset:2px; }
+
+.tip-address { font:9px var(--font-mono); letter-spacing:0; user-select:all; }

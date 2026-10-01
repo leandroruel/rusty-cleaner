@@ -184,6 +184,12 @@ export function initSettings(onLocaleChange: () => void): void {
   getElement<HTMLButtonElement>("open-privacy-button").addEventListener("click", () => {
     void openPrivacyPolicy();
   });
+  getElement<HTMLButtonElement>("copy-tip-address").addEventListener("click", () => {
+    const address = getElement<HTMLSpanElement>("tip-address").textContent ?? "";
+    void navigator.clipboard.writeText(address).then(() => {
+      showToast(t("settings.copied"));
+    });
+  });
   crashReportsToggle.addEventListener("change", () => {
     setOptedIn(crashReportsToggle.checked);
   });
