@@ -1,5 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
 import { renderFindings } from "./results";
@@ -110,6 +112,34 @@ export async function runScan(): Promise<void> {
 
   if (state.scanCancelled) return;
   revealScanResult();
+  void notifyScanComplete();
+}
+
+/// Shows a desktop notification when the scan completes while the window
+/// is minimized — the user knows results are ready without switching back.
+async function notifyScanComplete(): Promise<void> {
+  if (!isTauri() || state.scanCancelled) return;
+  try {
+    const window = getCurrentWindow();
+    if (!(await window.isMinimized())) return;
+
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      granted = (await requestPermission()) === "granted";
+    }
+    if (!granted) return;
+
+    const totalSize = state.findings.reduce((total, item) => total + item.size, 0);
+    sendNotification({
+      title: t("notification.scanTitle"),
+      body: t("notification.scanBody", {
+        count: formatCount(state.findings.length),
+        size: formatBytes(totalSize),
+      }),
+    });
+  } catch {
+    // Notifications unavailable (e.g. WSL without a notification daemon).
+  }
 }
 
 /// The completion moment: the ring pulses, the hero number counts up from
