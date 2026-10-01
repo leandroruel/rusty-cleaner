@@ -141,12 +141,7 @@ async function generateBriefing(): Promise<void> {
     .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
     .join("; ");
 
-  try {
-    const briefing = await scanBriefing(summary);
-    getElement("ai-briefing-title").textContent = briefing.headline;
-    briefingBody.textContent = briefing.bullets.join(" ");
-  } catch {
-    // Local fallback: generate a briefing without the model.
+  const showLocalBriefing = (): void => {
     const total = state.findings.reduce((sum, item) => sum + item.size, 0);
     const totalMiB = (total / 1_048_576).toFixed(0);
     getElement("ai-briefing-title").textContent = t("scan.summary", {
@@ -154,6 +149,22 @@ async function generateBriefing(): Promise<void> {
       time: "0",
     });
     briefingBody.textContent = `${totalMiB} MiB across ${counts.size} categories — ${summary}`;
+  };
+
+  try {
+    const briefing = await scanBriefing(summary);
+    // Reject meaningless responses — the model may return empty strings
+    // or trivial bullets; the local fallback is better than a blank card.
+    const hasContent = briefing.headline.trim().length >= 8
+      && briefing.bullets.some((bullet) => bullet.trim().length >= 10);
+    if (!hasContent) {
+      showLocalBriefing();
+      return;
+    }
+    getElement("ai-briefing-title").textContent = briefing.headline;
+    briefingBody.textContent = briefing.bullets.join(" ");
+  } catch {
+    showLocalBriefing();
   }
 }
 
