@@ -6,6 +6,7 @@ import { getElement, showToast } from "./state";
 import { refreshThemesPanel } from "./themes";
 import { isOptedIn, setOptedIn } from "./telemetry";
 
+
 const settingsButton = getElement<HTMLButtonElement>("settings-button");
 const settingsOverlay = getElement<HTMLElement>("settings-overlay");
 const settingsClose = getElement<HTMLButtonElement>("settings-close");
@@ -156,6 +157,15 @@ async function handleUpdateAction(): Promise<void> {
   }
 }
 
+function openPrivacyPolicy(): void {
+  const url = "https://github.com/leandroruel/rusty-cleaner#privacy-and-telemetry";
+  if (isTauri()) {
+    void invoke("open_url", { url });
+  } else {
+    window.open(url, "_blank");
+  }
+}
+
 export function initSettings(onLocaleChange: () => void): void {
   settingsButton.addEventListener("click", () => void openSettings());
   settingsClose.addEventListener("click", () => { settingsOverlay.hidden = true; });
@@ -171,6 +181,9 @@ export function initSettings(onLocaleChange: () => void): void {
     if (event.key === "Enter") void addExclusion();
   });
   checkUpdateButton.addEventListener("click", () => void handleUpdateAction());
+  getElement<HTMLButtonElement>("open-privacy-button").addEventListener("click", () => {
+    void openPrivacyPolicy();
+  });
   crashReportsToggle.addEventListener("change", () => {
     setOptedIn(crashReportsToggle.checked);
   });

@@ -852,6 +852,12 @@ fn system_metrics() -> SystemMetrics {
     }
 }
 
+/// Opens a URL in the system's default browser.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    open::that(&url).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn log_file_path() -> Option<String> {
     rusty_cleaner::activity_log::log_path().map(|path| path.to_string_lossy().into_owned())
@@ -987,6 +993,7 @@ pub fn run() {
             installed_themes,
             delete_theme,
             check_theme_updates,
+            open_url,
             copy_media_file,
             move_media_file,
             detect_platform,
