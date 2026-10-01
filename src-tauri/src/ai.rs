@@ -257,83 +257,123 @@ fn chat_completion(
     is_test: bool,
 ) -> Result<String, String> {
     let url = chat_url(&settings.base_url);
-    let body = serde_json::json!({
-        "model": settings.model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user}
-        ],
-        "temperature": 0.2,
-        "max_tokens": 800,
-    });
 
-    let json_body = serde_json::to_string(&body).map_err(|error| format!("payload: {error}"))?;
-
-    let request = ureq::post(&url)
-        .set("Content-Type", "application/json")
-        // Attribution headers — OpenRouter expects them and they are
-        // harmless for every other OpenAI-compatible provider.
-        .set(
-            "HTTP-Referer",
-            "https://github.com/leandroruel/rusty-cleaner",
-        )
-        .set("X-Title", "Rusty Cleaner")
-        .timeout(timeout_for(settings, is_test));
-
-    // Local providers (Ollama, LM Studio) accept an empty Bearer token.
-    let request = if settings.api_key.trim().is_empty() {
-        request
-    } else {
-        request.set("Authorization", &format!("Bearer {}", settings.api_key))
-    };
-
-    let response = match request.send_string(&json_body) {
-        Ok(response) => response,
-        // Surface the provider's own error message (rate-limit reason,
-        // invalid model, quota…) instead of just "status code 429".
-        Err(ureq::Error::Status(code, error_response)) => {
-            let body = error_response.into_string().unwrap_or_default();
-            let reason = serde_json::from_str::<serde_json::Value>(&body)
-                .ok()
-                .and_then(|value| {
-                    value
-                        .pointer("/error/message")
-                        .and_then(|message| message.as_str())
-                        .map(|message| message.to_owned())
-                })
-                .unwrap_or(body);
-            return Err(format!("HTTP {code} — {reason}"));
-        }
-        Err(error) => return Err(format!("AI request failed: {error}")),
-    };
-
-    let text = response
-        .into_string()
-        .map_err(|error| format!("AI response read failed: {error}"))?;
-
-    let json: serde_json::Value =
-        serde_json::from_str(&text).map_err(|error| format!("AI response invalid: {error}"))?;
-
-    let content = json
-        .get("choices")
-        .and_then(|choices| choices.get(0))
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(|content| content.as_str())
-        .or_else(|| {
-            json.get("choices")
-                .and_then(|choices| choices.get(0))
-                .and_then(|choice| choice.get("text"))
-                .and_then(|text| text.as_str())
+    // One attempt at a given token budget. Returns the extracted content
+    // and whether the model looks like a reasoning model that ran out of
+    // budget mid-thought (needs a bigger allowance and one retry).
+    let attempt = |max_tokens: u64| -> Result<(String, bool), String> {
+        let body = serde_json::json!({
+            "model": settings.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user}
+            ],
+            "temperature": 0.2,
+            "max_tokens": max_tokens,
         });
 
-    match content {
-        Some(content) if !content.trim().is_empty() => Ok(strip_markdown_fences(content)),
-        _ => {
-            let preview: String = text.chars().take(300).collect();
-            Err(format!("AI response has no content. Response: {preview}"))
+        let json_body =
+            serde_json::to_string(&body).map_err(|error| format!("payload: {error}"))?;
+
+        let request = ureq::post(&url)
+            .set("Content-Type", "application/json")
+            // Attribution headers — OpenRouter expects them and they are
+            // harmless for every other OpenAI-compatible provider.
+            .set(
+                "HTTP-Referer",
+                "https://github.com/leandroruel/rusty-cleaner",
+            )
+            .set("X-Title", "Rusty Cleaner")
+            .timeout(timeout_for(settings, is_test));
+
+        // Local providers (Ollama, LM Studio) accept an empty Bearer token.
+        let request = if settings.api_key.trim().is_empty() {
+            request
+        } else {
+            request.set("Authorization", &format!("Bearer {}", settings.api_key))
+        };
+
+        let response = match request.send_string(&json_body) {
+            Ok(response) => response,
+            // Surface the provider's own error message (rate-limit reason,
+            // invalid model, quota…) instead of just "status code 429".
+            Err(ureq::Error::Status(code, error_response)) => {
+                let body = error_response.into_string().unwrap_or_default();
+                let reason = serde_json::from_str::<serde_json::Value>(&body)
+                    .ok()
+                    .and_then(|value| {
+                        value
+                            .pointer("/error/message")
+                            .and_then(|message| message.as_str())
+                            .map(|message| message.to_owned())
+                    })
+                    .unwrap_or(body);
+                return Err(format!("HTTP {code} — {reason}"));
+            }
+            Err(error) => return Err(format!("AI request failed: {error}")),
+        };
+
+        let text = response
+            .into_string()
+            .map_err(|error| format!("AI response read failed: {error}"))?;
+
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|error| format!("AI response invalid: {error}"))?;
+
+        let message = json
+            .get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("message"));
+
+        let content = message
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+            .map(str::trim)
+            .filter(|content| !content.is_empty())
+            .or_else(|| {
+                json.get("choices")
+                    .and_then(|choices| choices.get(0))
+                    .and_then(|choice| choice.get("text"))
+                    .and_then(|text| text.as_str())
+            });
+
+        // Reasoning models (DeepSeek-R1 on NIM etc.) put chain-of-thought
+        // here and only then produce the final answer.
+        let reasoning = message
+            .and_then(|message| message.get("reasoning_content"))
+            .and_then(|reasoning| reasoning.as_str())
+            .map(str::trim)
+            .filter(|reasoning| !reasoning.is_empty());
+
+        let truncated = json
+            .get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("finish_reason"))
+            .and_then(|reason| reason.as_str())
+            .is_some_and(|reason| reason == "length");
+
+        if let Some(content) = content {
+            return Ok((strip_markdown_fences(content), false));
         }
+        if reasoning.is_some() || truncated {
+            // The budget ran out before the answer arrived — reasoning
+            // models burn it all on chain-of-thought. Hand back whatever
+            // the model produced and signal the caller to retry with a
+            // bigger allowance.
+            let partial = reasoning.map(strip_markdown_fences).unwrap_or_default();
+            return Ok((partial, true));
+        }
+        let preview: String = text.chars().take(300).collect();
+        Err(format!("AI response has no content. Response: {preview}"))
+    };
+
+    let (first, retry) = attempt(800)?;
+    if !retry {
+        return Ok(first);
     }
+    // The reasoning ate the whole budget — give it real room, once.
+    let (second, _) = attempt(4000)?;
+    Ok(second)
 }
 
 /// Strips ```json … ``` fences if the model wrapped the JSON.
