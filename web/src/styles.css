@@ -476,6 +476,7 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .ai-briefing-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:4px; }
 .ai-briefing-title { color:var(--text); font-size:11px; font-weight:700; }
 .ai-briefing-body { color:var(--text-dim); font-size:10px; line-height:1.5; }
+.ai-briefing.is-loading .ai-briefing-icon svg { animation:theme-spin 1s linear infinite; }
 .ai-nl-search input { width:200px; }
 .ai-nl-search[hidden] { display:none; }
 .risk-badge { display:inline-block; padding:2px 6px; border-radius:3px; font:700 9px var(--font-mono); letter-spacing:.05em; }

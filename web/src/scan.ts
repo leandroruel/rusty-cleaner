@@ -128,7 +128,12 @@ async function generateBriefing(): Promise<void> {
     return;
   }
   const briefingBody = getElement("ai-briefing-body");
-  briefingBody.textContent = "…";
+  const briefingTitle = getElement("ai-briefing-title");
+  // Loading state — the LLM takes a few seconds; show a spinner so the
+  // card doesn't look like it was pre-filled before the model replied.
+  briefingTitle.textContent = t("scan.briefingPreparing");
+  briefingBody.textContent = "";
+  card.classList.add("is-loading");
   card.hidden = false;
   const counts = new Map<string, { count: number; size: number }>();
   for (const item of state.findings) {
@@ -144,6 +149,7 @@ async function generateBriefing(): Promise<void> {
   const showLocalBriefing = (): void => {
     const total = state.findings.reduce((sum, item) => sum + item.size, 0);
     const totalMiB = (total / 1_048_576).toFixed(0);
+    card.classList.remove("is-loading");
     getElement("ai-briefing-title").textContent = t("scan.summary", {
       count: formatCount(state.findings.length),
       time: "0",
@@ -161,6 +167,7 @@ async function generateBriefing(): Promise<void> {
       showLocalBriefing();
       return;
     }
+    card.classList.remove("is-loading");
     getElement("ai-briefing-title").textContent = briefing.headline;
     briefingBody.textContent = briefing.bullets.join(" ");
   } catch {
