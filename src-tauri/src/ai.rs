@@ -269,6 +269,13 @@ fn chat_completion(
 
     let request = ureq::post(&url)
         .set("Content-Type", "application/json")
+        // Attribution headers — OpenRouter expects them and they are
+        // harmless for every other OpenAI-compatible provider.
+        .set(
+            "HTTP-Referer",
+            "https://github.com/leandroruel/rusty-cleaner",
+        )
+        .set("X-Title", "Rusty Cleaner")
         .timeout(timeout_for(settings, is_test));
 
     // Local providers (Ollama, LM Studio) accept an empty Bearer token.
@@ -278,9 +285,25 @@ fn chat_completion(
         request.set("Authorization", &format!("Bearer {}", settings.api_key))
     };
 
-    let response = request
-        .send_string(&json_body)
-        .map_err(|error| format!("AI request failed: {error}"))?;
+    let response = match request.send_string(&json_body) {
+        Ok(response) => response,
+        // Surface the provider's own error message (rate-limit reason,
+        // invalid model, quota…) instead of just "status code 429".
+        Err(ureq::Error::Status(code, error_response)) => {
+            let body = error_response.into_string().unwrap_or_default();
+            let reason = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .pointer("/error/message")
+                        .and_then(|message| message.as_str())
+                        .map(|message| message.to_owned())
+                })
+                .unwrap_or(body);
+            return Err(format!("HTTP {code} — {reason}"));
+        }
+        Err(error) => return Err(format!("AI request failed: {error}")),
+    };
 
     let text = response
         .into_string()
