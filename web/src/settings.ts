@@ -257,6 +257,10 @@ export function initSettings(onLocaleChange: () => void): void {
     }
   });
   aiTestButton.addEventListener("click", () => void testAi());
+  getElement<HTMLButtonElement>("ai-help-toggle").addEventListener("click", () => {
+    const help = getElement("ai-help");
+    help.hidden = !help.hidden;
+  });
   languageSelect.addEventListener("change", () => {
     setLocale(languageSelect.value as Locale);
     onLocaleChange();

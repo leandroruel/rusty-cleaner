@@ -489,3 +489,9 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .ai-explain-title { color:var(--text); font-size:11px; font-weight:700; }
 .ai-explain-why { color:var(--text-dim); font-size:10px; line-height:1.4; }
 .ai-explain-why em { color:var(--text-faint); font-style:normal; }
+
+.ai-help { display:flex; flex-direction:column; gap:10px; margin-top:12px; padding:14px 16px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); }
+.ai-help[hidden] { display:none; }
+.ai-help-step { display:flex; flex-direction:column; gap:3px; }
+.ai-help-step strong { color:var(--text); font-size:11px; }
+.ai-help-step span { color:var(--text-dim); font-size:10px; line-height:1.5; }

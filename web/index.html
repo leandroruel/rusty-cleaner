@@ -552,6 +552,31 @@
                   <span class="about-status" id="ai-test-status"></span>
                   <button class="button button-quiet" id="ai-test-button" type="button" data-i18n="settings.aiTest">Test connection</button>
                 </div>
+                <div class="settings-row" style="margin-top:8px;">
+                  <button class="button button-quiet" id="ai-help-toggle" type="button" data-i18n="settings.aiHelp">How to configure</button>
+                </div>
+                <div class="ai-help" id="ai-help" hidden>
+                  <div class="ai-help-step">
+                    <strong data-i18n="settings.aiHelpStep1">1. Get an API key</strong>
+                    <span data-i18n="settings.aiHelpStep1Text">Create a free key from any OpenAI-compatible provider. OpenAI (platform.openai.com), Groq (console.groq.com) and OpenRouter (openrouter.ai) all work. LM Studio and Ollama run locally and need no key.</span>
+                  </div>
+                  <div class="ai-help-step">
+                    <strong data-i18n="settings.aiHelpStep2">2. Pick a model</strong>
+                    <span data-i18n="settings.aiHelpStep2Text">OpenAI: gpt-4o-mini. Groq: llama-3.1-8b-instant. OpenRouter: any model with /api/v1. Ollama: llama3.1 or mistral. The model must support JSON responses.</span>
+                  </div>
+                  <div class="ai-help-step">
+                    <strong data-i18n="settings.aiHelpStep3">3. Paste and test</strong>
+                    <span data-i18n="settings.aiHelpStep3Text">Paste the base URL and key above, pick a model, toggle on, and click "Test connection". If it says Connected, you're done.</span>
+                  </div>
+                  <div class="ai-help-step">
+                    <strong data-i18n="settings.aiHelpStep4">4. What it does</strong>
+                    <span data-i18n="settings.aiHelpStep4Text">After a scan: a briefing card on the Overview explains what the junk is. In the results, the AI search bar filters by description ("browser caches over 50 MB"). Risk badges appear on findings.</span>
+                  </div>
+                  <div class="ai-help-step">
+                    <strong data-i18n="settings.aiHelpStep5">Privacy</strong>
+                    <span data-i18n="settings.aiHelpStep5Text">Only file paths (if allowed), sizes, and categories are sent. File contents, names, and personal data are NEVER sent. The key stays on your machine. Toggle off any time.</span>
+                  </div>
+                </div>
               </section>
               <section class="settings-panel" data-settings-panel="about" hidden>
                 <p class="settings-hint" data-i18n="settings.aboutHint">App version and updates.</p>
