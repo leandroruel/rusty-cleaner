@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { captureBackendError } from "./telemetry";
 import { number, t } from "./i18n";
 import { formatBytes, getElement, showToast, state, type CacheCleanResult, type EmptyTrashResult, type Finding, type RegistryFixResult, type TrashResult } from "./state";
 import { renderFindings, updateSelectionBar } from "./results";
@@ -169,6 +170,7 @@ async function deleteCachePaths(paths: string[]): Promise<void> {
     }
   } catch (error) {
     hideCleanProgress();
+    captureBackendError("clean", error);
     showToast(String(error));
   }
 }
@@ -289,6 +291,7 @@ export async function trashPaths(paths: string[]): Promise<void> {
     }
   } catch (error) {
     hideCleanProgress();
+    captureBackendError("clean", error);
     showToast(String(error));
   }
 }

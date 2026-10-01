@@ -61,6 +61,8 @@ function applyTranslations(): void {
   refreshCleaningLabels();
 }
 
+import { initTelemetry } from "./telemetry";
+initTelemetry();
 loadLocale();
 void restoreAppliedTheme();
 applyTranslations();

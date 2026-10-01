@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { captureBackendError } from "./telemetry";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
 import { renderFindings } from "./results";
@@ -80,6 +81,7 @@ export async function runScan(): Promise<void> {
         renderSummary();
       } catch (error) {
         failed += 1;
+        captureBackendError(`scan:${feature}`, error);
         failedScans.push({
           path: t(`feature.${feature}`),
           date: new Date().toLocaleString(),

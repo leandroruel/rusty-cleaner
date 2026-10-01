@@ -4,6 +4,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getLocale, setLocale, t, type Locale } from "./i18n";
 import { getElement, showToast } from "./state";
 import { refreshThemesPanel } from "./themes";
+import { isOptedIn, setOptedIn } from "./telemetry";
 
 const settingsButton = getElement<HTMLButtonElement>("settings-button");
 const settingsOverlay = getElement<HTMLElement>("settings-overlay");
@@ -18,6 +19,7 @@ const excludeAdd = getElement<HTMLButtonElement>("exclude-add");
 const excludeBrowse = getElement<HTMLButtonElement>("exclude-browse");
 const excludeList = getElement<HTMLUListElement>("exclude-list");
 const languageSelect = getElement<HTMLSelectElement>("language-select");
+const crashReportsToggle = getElement<HTMLInputElement>("crash-reports-toggle");
 const aboutVersion = getElement<HTMLElement>("about-version");
 const aboutStatus = getElement<HTMLElement>("about-update-status");
 const checkUpdateButton = getElement<HTMLButtonElement>("check-update-button");
@@ -45,6 +47,7 @@ async function openSettings(): Promise<void> {
   settingsOverlay.hidden = false;
   settingsClose.focus();
   languageSelect.value = getLocale();
+  crashReportsToggle.checked = isOptedIn();
   resetUpdateControls();
   selectSection(activeSection);
   if (!isTauri()) return;
@@ -168,6 +171,9 @@ export function initSettings(onLocaleChange: () => void): void {
     if (event.key === "Enter") void addExclusion();
   });
   checkUpdateButton.addEventListener("click", () => void handleUpdateAction());
+  crashReportsToggle.addEventListener("change", () => {
+    setOptedIn(crashReportsToggle.checked);
+  });
   languageSelect.addEventListener("change", () => {
     setLocale(languageSelect.value as Locale);
     onLocaleChange();
