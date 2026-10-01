@@ -277,10 +277,12 @@ export function initSettings(onLocaleChange: () => void): void {
   aiApiKey.addEventListener("change", () => void saveAi());
   aiSendPaths.addEventListener("change", () => void saveAi());
   aiProviderPreset.addEventListener("change", () => {
-    if (aiProviderPreset.value) {
-      aiBaseUrl.value = aiProviderPreset.value;
-      void saveAi();
-    }
+    if (!aiProviderPreset.value) return;
+    aiBaseUrl.value = aiProviderPreset.value;
+    aiModel.value = "";
+    aiApiKey.value = "";
+    aiModel.placeholder = aiProviderPreset.selectedOptions[0]?.dataset.modelHint ?? "gpt-4o-mini";
+    void saveAi();
   });
   aiTestButton.addEventListener("click", () => void testAi());
   getElement<HTMLButtonElement>("ai-help-toggle").addEventListener("click", () => {
