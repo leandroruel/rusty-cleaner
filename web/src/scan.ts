@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { captureBackendError } from "./telemetry";
-import { isEnabled as aiIsEnabled, scanBriefing } from "./ai";
+import { isEnabled as aiIsEnabled, scanBriefing, type ScanBriefing } from "./ai";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
 import { renderFindings } from "./results";
@@ -68,6 +68,7 @@ export async function runScan(): Promise<void> {
   const started = performance.now();
   let platform = "unknown";
   let failed = 0;
+  let elapsed = 0;
 
   try {
     for (const [index, feature] of scanOrder.entries()) {
@@ -93,7 +94,7 @@ export async function runScan(): Promise<void> {
     }
     state.currentScanFeature = null;
 
-    const elapsed = (performance.now() - started) / 1000;
+    elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = state.findings.length === 0;
     statusLabel.textContent = state.scanCancelled
       ? t("app.cancelled")
@@ -116,12 +117,27 @@ export async function runScan(): Promise<void> {
   if (state.scanCancelled) return;
   revealScanResult();
   void notifyScanComplete();
-  void generateBriefing();
+  void generateBriefing(elapsed);
+}
+
+/// Briefings cached by the exact summary sent to the model — a repeated
+/// scan with identical results skips the LLM call entirely (no tokens).
+const briefingCache = new Map<string, ScanBriefing>();
+const BRIEFING_CACHE_MAX = 8;
+/// Bumped on every new scan and on cancel — stale replies are discarded.
+let briefingReqId = 0;
+
+function renderBriefing(briefing: ScanBriefing): void {
+  const card = getElement("ai-briefing");
+  card.classList.remove("is-loading");
+  getElement("ai-briefing-title").textContent = briefing.headline;
+  getElement("ai-briefing-body").textContent = briefing.bullets.join(" ");
 }
 
 /// Shows an AI-generated scan briefing below the ring when the assistant
 /// is enabled. Silently hidden otherwise.
-async function generateBriefing(): Promise<void> {
+async function generateBriefing(elapsed: number): Promise<void> {
+  const reqId = ++briefingReqId;
   const card = getElement("ai-briefing");
   if (!(await aiIsEnabled())) {
     card.hidden = true;
@@ -129,12 +145,6 @@ async function generateBriefing(): Promise<void> {
   }
   const briefingBody = getElement("ai-briefing-body");
   const briefingTitle = getElement("ai-briefing-title");
-  // Loading state — the LLM takes a few seconds; show a spinner so the
-  // card doesn't look like it was pre-filled before the model replied.
-  briefingTitle.textContent = t("scan.briefingPreparing");
-  briefingBody.textContent = "";
-  card.classList.add("is-loading");
-  card.hidden = false;
   const counts = new Map<string, { count: number; size: number }>();
   for (const item of state.findings) {
     const current = counts.get(item.feature) ?? { count: 0, size: 0 };
@@ -152,13 +162,30 @@ async function generateBriefing(): Promise<void> {
     card.classList.remove("is-loading");
     getElement("ai-briefing-title").textContent = t("scan.summary", {
       count: formatCount(state.findings.length),
-      time: "0",
+      time: elapsed.toFixed(1).replace(".", ","),
     });
     briefingBody.textContent = `${totalMiB} MiB across ${counts.size} categories — ${summary}`;
   };
 
+  // Cache hit — identical scan results, reuse the previous reply.
+  const cached = briefingCache.get(summary);
+  if (cached) {
+    card.hidden = false;
+    renderBriefing(cached);
+    return;
+  }
+
+  // Loading state — the LLM takes a few seconds; the spinner plus the
+  // cancel button let the user bail out instead of waiting.
+  briefingTitle.textContent = t("scan.briefingPreparing");
+  briefingBody.textContent = "";
+  card.classList.add("is-loading");
+  card.hidden = false;
+
   try {
     const briefing = await scanBriefing(summary);
+    // Discard stale replies — a newer scan started or the user cancelled.
+    if (reqId !== briefingReqId) return;
     // Reject meaningless responses — the model may return empty strings
     // or trivial bullets; the local fallback is better than a blank card.
     const hasContent = briefing.headline.trim().length >= 8
@@ -167,11 +194,16 @@ async function generateBriefing(): Promise<void> {
       showLocalBriefing();
       return;
     }
-    card.classList.remove("is-loading");
-    getElement("ai-briefing-title").textContent = briefing.headline;
-    briefingBody.textContent = briefing.bullets.join(" ");
-  } catch {
-    showLocalBriefing();
+    briefingCache.set(summary, briefing);
+    if (briefingCache.size > BRIEFING_CACHE_MAX) {
+      const oldest = briefingCache.keys().next().value;
+      if (oldest !== undefined) briefingCache.delete(oldest);
+    }
+    renderBriefing(briefing);
+  } catch (error) {
+    // Visible in devtools — silent failures made briefing issues undiagnosable.
+    console.warn("[briefing] AI call failed, using local summary:", error);
+    if (reqId === briefingReqId) showLocalBriefing();
   }
 }
 
@@ -376,6 +408,12 @@ function renderFailedScans(): void {
 }
 
 export function initScan(): void {
+  getElement("ai-briefing-cancel").addEventListener("click", () => {
+    briefingReqId++; // invalidate the in-flight request
+    const card = getElement("ai-briefing");
+    card.hidden = true;
+    card.classList.remove("is-loading");
+  });
   scanButton.addEventListener("click", () => {
     if (state.scanning) {
       state.scanCancelled = true;

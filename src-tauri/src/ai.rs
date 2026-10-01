@@ -202,18 +202,23 @@ pub struct ExplainGroup {
 #[serde(rename_all = "camelCase")]
 pub struct ScanBriefing {
     pub headline: String,
+    #[serde(default)]
     pub bullets: Vec<String>,
+    #[serde(default)]
     pub safe_gb: f64,
+    #[serde(default)]
     pub review_gb: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NlFilter {
+    #[serde(default)]
     pub categories: Vec<String>,
     pub min_age_days: Option<u64>,
     pub min_size_bytes: Option<u64>,
     pub apps: Option<Vec<String>>,
+    #[serde(default)]
     pub query_echo: String,
 }
 
@@ -319,6 +324,17 @@ fn strip_markdown_fences(content: &str) -> String {
     }
 }
 
+/// Tolerant JSON extraction: strips markdown fences and, if the model
+/// added prose around the object, keeps only the outermost `{…}` span.
+/// Returns an owned `&Cow`-free slice of the original when possible.
+fn extract_json(reply: &str) -> String {
+    let cleaned = strip_markdown_fences(reply);
+    match (cleaned.find('{'), cleaned.rfind('}')) {
+        (Some(start), Some(end)) if end > start => cleaned[start..=end].to_owned(),
+        _ => cleaned,
+    }
+}
+
 // ─── Public commands ──────────────────────────────────────────────────────
 
 pub fn test_connection(settings: &AiSettings) -> Result<String, String> {
@@ -394,8 +410,8 @@ pub fn explain_groups(
 
     let reply = chat_completion(settings, system, &user, false)?;
 
-    // Parse {groups: [...]} — json_object response format always wraps in an object.
-    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&reply) {
+    // Parse {groups: [...]} — tolerate fences/prose around the object.
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&extract_json(&reply)) {
         if let Some(groups_value) = parsed.get("groups").and_then(|g| g.as_array()) {
             if let Ok(enriched) = serde_json::from_value::<Vec<ExplainGroup>>(
                 serde_json::Value::Array(groups_value.clone()),
@@ -431,7 +447,8 @@ pub fn scan_briefing(settings: &AiSettings, summary: &str) -> Result<ScanBriefin
     let system = "You are a disk-cleaning assistant. You receive a summary of scan results (categories, item counts, sizes). Respond with a JSON object: {\"headline\": <≤80 chars>, \"bullets\": [<3-6 short strings>], \"safeGb\": <number>, \"reviewGb\": <number>}. The headline says what the junk is. Bullets explain per category. safeGb = GB safely removable (caches). reviewGb = GB needing review (media, duplicates).";
 
     let reply = chat_completion(settings, system, summary, false)?;
-    serde_json::from_str(&reply).map_err(|error| format!("briefing parse: {error}"))
+    let json_text = extract_json(&reply);
+    serde_json::from_str(&json_text).map_err(|error| format!("briefing parse: {error}"))
 }
 
 pub fn nl_filter(
@@ -449,8 +466,9 @@ pub fn nl_filter(
     );
 
     let reply = chat_completion(settings, &system, query, false)?;
+    let json_text = extract_json(&reply);
     let mut filter: NlFilter =
-        serde_json::from_str(&reply).map_err(|error| format!("filter parse: {error}"))?;
+        serde_json::from_str(&json_text).map_err(|error| format!("filter parse: {error}"))?;
 
     filter
         .categories
