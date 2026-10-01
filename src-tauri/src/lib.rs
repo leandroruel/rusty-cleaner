@@ -994,7 +994,7 @@ pub fn run() {
             delete_theme,
             check_theme_updates,
             open_url,
-                                                                                                copy_media_file,
+            copy_media_file,
             move_media_file,
             detect_platform,
             detect_theme,

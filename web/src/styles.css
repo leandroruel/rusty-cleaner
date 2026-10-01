@@ -465,12 +465,12 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .tip-icon { display:grid; width:20px; height:20px; flex:none; place-items:center; color:var(--amber); }
 .tip-icon svg { width:16px; height:16px; }
 
-/* AI assistant */
+/* Settings cards: text inputs and selects */
 .settings-card-control input[type="text"], .settings-card-control input[type="password"] { min-height:32px; min-width:0; width:100%; padding:5px 9px; border:1px solid var(--border); border-radius:5px; background:var(--panel); color:var(--text); font-size:11px; }
 .settings-card-control select { min-height:32px; min-width:120px; padding:5px 9px; border:1px solid var(--border); border-radius:5px; background:var(--panel); color:var(--text); font-size:11px; }
 
 
-/* AI settings: disabled state for all card controls */
+/* Settings cards: disabled state for all card controls */
 .settings-card-control input:disabled,
 .settings-card-control select:disabled {
   opacity: 0.38;

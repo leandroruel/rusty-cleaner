@@ -1,6 +1,6 @@
 # Maintainer: Leandro Ruel <https://github.com/leandroruel>
 pkgname=rusty-cleaner-bin
-pkgver=0.1.0
+pkgver=0.5.2
 pkgrel=1
 pkgdesc="Fast, open-source, cross-platform disk cleaner built in Rust (Tauri)"
 arch=('x86_64')
