@@ -187,6 +187,19 @@ async function loadAiSettings(): Promise<void> {
   } catch {
     // Settings unavailable — leave fields empty.
   }
+  syncAiFields();
+}
+
+/// Disables every AI field while the master toggle is off, so the user
+/// can't configure a provider that will never be used.
+function syncAiFields(): void {
+  const enabled = aiEnabledToggle.checked;
+  for (const element of [aiBaseUrl, aiModel, aiApiKey, aiSendPaths]) {
+    element.disabled = !enabled;
+  }
+  aiProviderPreset.disabled = !enabled;
+  aiTestButton.disabled = !enabled;
+  aiTestStatus.textContent = "";
 }
 
 async function saveAi(): Promise<void> {
@@ -204,9 +217,16 @@ async function saveAi(): Promise<void> {
   }
 }
 
+let aiTesting = false;
+
 async function testAi(): Promise<void> {
+  if (aiTesting) return;
+  aiTesting = true;
+  const originalLabel = aiTestButton.textContent;
   aiTestButton.disabled = true;
-  aiTestStatus.textContent = t("settings.checking");
+  aiTestButton.classList.add("theme-downloading");
+  aiTestButton.textContent = t("settings.testing");
+  aiTestStatus.textContent = "";
   try {
     await saveAi();
     const message = await testConnection();
@@ -214,7 +234,10 @@ async function testAi(): Promise<void> {
   } catch (error) {
     aiTestStatus.textContent = String(error);
   } finally {
-    aiTestButton.disabled = false;
+    aiTesting = false;
+    aiTestButton.classList.remove("theme-downloading");
+    aiTestButton.textContent = originalLabel;
+    aiTestButton.disabled = !aiEnabledToggle.checked;
   }
 }
 
@@ -245,7 +268,10 @@ export function initSettings(onLocaleChange: () => void): void {
   crashReportsToggle.addEventListener("change", () => {
     setOptedIn(crashReportsToggle.checked);
   });
-  aiEnabledToggle.addEventListener("change", () => void saveAi());
+  aiEnabledToggle.addEventListener("change", () => {
+    syncAiFields();
+    void saveAi();
+  });
   aiBaseUrl.addEventListener("change", () => void saveAi());
   aiModel.addEventListener("change", () => void saveAi());
   aiApiKey.addEventListener("change", () => void saveAi());
