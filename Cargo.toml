@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "rusty-cleaner"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 rust-version = "1.70"
 description = "Cross-platform system cleaner and storage scanner"
