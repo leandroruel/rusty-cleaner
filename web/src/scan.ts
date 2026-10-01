@@ -132,6 +132,7 @@ function renderBriefing(briefing: ScanBriefing): void {
   card.classList.remove("is-loading");
   getElement("ai-briefing-title").textContent = briefing.headline;
   getElement("ai-briefing-body").textContent = briefing.bullets.join(" ");
+  getElement("ai-briefing-error").hidden = true;
 }
 
 /// Shows an AI-generated scan briefing below the ring when the assistant
@@ -160,11 +161,20 @@ async function generateBriefing(elapsed: number): Promise<void> {
     const total = state.findings.reduce((sum, item) => sum + item.size, 0);
     const totalMiB = (total / 1_048_576).toFixed(0);
     card.classList.remove("is-loading");
+    getElement("ai-briefing-error").hidden = true;
     getElement("ai-briefing-title").textContent = t("scan.summary", {
       count: formatCount(state.findings.length),
       time: elapsed.toFixed(1).replace(".", ","),
     });
     briefingBody.textContent = `${totalMiB} MiB across ${counts.size} categories — ${summary}`;
+  };
+
+  // Surface the AI failure reason in the card — a fallback with no
+  // explanation looks like the feature is just broken.
+  const showError = (message: string): void => {
+    const errorEl = getElement("ai-briefing-error");
+    errorEl.hidden = false;
+    errorEl.textContent = message.slice(0, 180);
   };
 
   // Cache hit — identical scan results, reuse the previous reply.
@@ -179,6 +189,7 @@ async function generateBriefing(elapsed: number): Promise<void> {
   // cancel button let the user bail out instead of waiting.
   briefingTitle.textContent = t("scan.briefingPreparing");
   briefingBody.textContent = "";
+  getElement("ai-briefing-error").hidden = true;
   card.classList.add("is-loading");
   card.hidden = false;
 
@@ -191,7 +202,10 @@ async function generateBriefing(elapsed: number): Promise<void> {
     const hasContent = briefing.headline.trim().length >= 8
       && briefing.bullets.some((bullet) => bullet.trim().length >= 10);
     if (!hasContent) {
+      console.warn("[briefing] model reply lacked content, using local summary:", briefing);
+      if (reqId !== briefingReqId) return;
       showLocalBriefing();
+      showError(t("scan.briefingEmpty"));
       return;
     }
     briefingCache.set(summary, briefing);
@@ -201,9 +215,13 @@ async function generateBriefing(elapsed: number): Promise<void> {
     }
     renderBriefing(briefing);
   } catch (error) {
-    // Visible in devtools — silent failures made briefing issues undiagnosable.
+    // Visible in devtools AND in the card — silent failures made briefing
+    // issues undiagnosable.
     console.warn("[briefing] AI call failed, using local summary:", error);
-    if (reqId === briefingReqId) showLocalBriefing();
+    if (reqId !== briefingReqId) return;
+    showLocalBriefing();
+    const message = error instanceof Error ? error.message : String(error);
+    showError(message);
   }
 }
 
