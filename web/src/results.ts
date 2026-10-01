@@ -72,6 +72,7 @@ export function renderFindings(): void {
         if (rendered >= 500) break;
         rendered += 1;
         const row = document.createElement("tr");
+        row.dataset.path = item.path;
         if (group.length > 1) row.className = "duplicate-member";
 
         const selectCell = document.createElement("td");
@@ -140,6 +141,7 @@ export function renderFindings(): void {
   selectAll.checked = visible.length > 0 && selectedVisible.length === visible.length;
   selectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length;
   updateSelectionBar();
+  void renderRiskBadges();
 }
 
 export function updateSelectionBar(): void {
@@ -175,7 +177,16 @@ async function initAiVisibility(): Promise<void> {
 
 /// Shows risk badges on visible findings — local classifier works even
 /// without the AI; the API just adds richer explanations.
+let riskBadgeTimer = 0;
+
 async function renderRiskBadges(): Promise<void> {
+  // Debounce: renderFindings fires on every keystroke in the search box;
+  // the AI call is expensive, so wait 800ms of silence before rendering.
+  window.clearTimeout(riskBadgeTimer);
+  riskBadgeTimer = window.setTimeout(() => void renderRiskBadgesNow(), 800);
+}
+
+async function renderRiskBadgesNow(): Promise<void> {
   const enabled = await aiIsEnabled();
   if (!enabled) return;
   const visible = visibleFindings().slice(0, 50);
@@ -194,22 +205,21 @@ async function renderRiskBadges(): Promise<void> {
     for (const item of visible) {
       const explained_item = badgeMap.get(item.path);
       if (!explained_item) continue;
-      const existing = document.querySelector(
-        `[data-risk-for="${CSS.escape(item.path)}"]`,
+      const row = document.querySelector(
+        `tr[data-path="${CSS.escape(item.path)}"] td:nth-child(3)`,
       );
+      if (!row) continue;
+      const existing = row.querySelector(`[data-risk-for]`);
       if (existing) existing.remove();
       const badge = document.createElement("span");
       badge.className = `risk-badge risk-badge-${explained_item.risk}`;
       badge.dataset.riskFor = item.path;
       badge.title = explained_item.why;
       badge.textContent = explained_item.risk;
-      const row = document.querySelector(
-        `tr[data-path="${CSS.escape(item.path)}"] td:nth-child(3)`,
-      );
-      if (row) row.prepend(badge);
+      row.prepend(badge);
     }
   } catch {
-    // AI unavailable — badges from local classifier are still added by the backend.
+    // AI unavailable — local risk rules from the backend still work.
   }
 }
 
@@ -218,6 +228,10 @@ async function applyNlFilter(query: string): Promise<void> {
   try {
     const filter = await nlFilter(query, aiCategories);
     if (filter.categories.length === 1) {
+      filterSelect.value = filter.categories[0];
+      state.activeFilter = filter.categories[0];
+    } else if (filter.categories.length > 1) {
+      // Multiple categories: apply the first and note the rest.
       filterSelect.value = filter.categories[0];
       state.activeFilter = filter.categories[0];
     }
