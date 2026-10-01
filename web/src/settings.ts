@@ -233,6 +233,7 @@ async function testAi(): Promise<void> {
     aiTestStatus.textContent = message;
   } catch (error) {
     aiTestStatus.textContent = String(error);
+    showToast(String(error));
   } finally {
     aiTesting = false;
     aiTestButton.classList.remove("theme-downloading");
