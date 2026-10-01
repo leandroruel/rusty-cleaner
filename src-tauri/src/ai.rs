@@ -236,14 +236,16 @@ fn chat_url(base_url: &str) -> String {
     }
 }
 
-/// Timeout per call type: connection tests fail fast (20s), NVIDIA NIM
-/// cold starts can take minutes (300s), everything else gets 45s.
+/// Timeout per call type: NVIDIA NIM cold starts can take minutes — the
+/// check comes FIRST because even a connection test can sit in the
+/// cold-start queue. Other connection tests fail fast (20s); the rest
+/// gets 45s.
 fn timeout_for(settings: &AiSettings, is_test: bool) -> Duration {
-    if is_test {
-        return Duration::from_secs(20);
-    }
     if settings.base_url.to_lowercase().contains("nvidia.com") {
         return Duration::from_secs(300);
+    }
+    if is_test {
+        return Duration::from_secs(20);
     }
     Duration::from_secs(45)
 }
