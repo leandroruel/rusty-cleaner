@@ -432,8 +432,8 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .theme-badge { padding:4px 10px; border:1px solid color-mix(in srgb, var(--green) 32%, transparent); border-radius:999px; background:color-mix(in srgb, var(--green) 8%, transparent); color:var(--green); font:600 9px var(--font-mono); letter-spacing:.05em; }
 
 
-.theme-apply.theme-downloading { position:relative; color:transparent!important; pointer-events:none; }
-.theme-apply.theme-downloading::after { content:""; position:absolute; top:50%; left:50%; width:14px; height:14px; margin:-7px 0 0 -7px; border:2px solid transparent; border-top-color:var(--cyan); border-right-color:var(--cyan); border-radius:50%; animation:theme-spin .7s linear infinite; }
+.theme-downloading { position:relative; color:transparent!important; pointer-events:none; }
+.theme-downloading::after { content:""; position:absolute; top:50%; left:50%; width:14px; height:14px; margin:-7px 0 0 -7px; border:2px solid transparent; border-top-color:var(--cyan); border-right-color:var(--cyan); border-radius:50%; animation:theme-spin .7s linear infinite; }
 @keyframes theme-spin { to { transform:rotate(360deg); } }
 
 .theme-update { border-color:color-mix(in srgb, var(--amber) 40%, transparent); color:var(--amber); }

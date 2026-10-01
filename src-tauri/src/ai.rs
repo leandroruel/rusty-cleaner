@@ -197,7 +197,7 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
     let response = ureq::post(&url)
         .set("Authorization", &format!("Bearer {}", settings.api_key))
         .set("Content-Type", "application/json")
-        .timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(60))
         .send_string(&json_body)
         .map_err(|error| format!("AI request failed: {error}"))?;
 
