@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { captureBackendError } from "./telemetry";
+import { isEnabled as aiIsEnabled, scanBriefing } from "./ai";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
 import { renderFindings } from "./results";
@@ -115,6 +116,37 @@ export async function runScan(): Promise<void> {
   if (state.scanCancelled) return;
   revealScanResult();
   void notifyScanComplete();
+  void generateBriefing();
+}
+
+/// Shows an AI-generated scan briefing below the ring when the assistant
+/// is enabled. Silently hidden otherwise.
+async function generateBriefing(): Promise<void> {
+  const card = getElement("ai-briefing");
+  if (!(await aiIsEnabled())) {
+    card.hidden = true;
+    return;
+  }
+  const briefingBody = getElement("ai-briefing-body");
+  briefingBody.textContent = "…";
+  card.hidden = false;
+  try {
+    const counts = new Map<string, { count: number; size: number }>();
+    for (const item of state.findings) {
+      const current = counts.get(item.feature) ?? { count: 0, size: 0 };
+      current.count += 1;
+      current.size += item.size;
+      counts.set(item.feature, current);
+    }
+    const summary = [...counts.entries()]
+      .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
+      .join("; ");
+    const briefing = await scanBriefing(summary);
+    getElement("ai-briefing-title").textContent = briefing.headline;
+    briefingBody.textContent = briefing.bullets.join(" ");
+  } catch {
+    card.hidden = true;
+  }
 }
 
 /// Shows a desktop notification when the scan completes while the window

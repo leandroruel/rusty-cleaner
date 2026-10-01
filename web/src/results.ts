@@ -1,5 +1,6 @@
 import { featureColors, featureLabels, formatBytes, formatCount, getElement, state, type Finding } from "./state";
 import { t } from "./i18n";
+import { aiCategories, explainGroups, isEnabled as aiIsEnabled, nlFilter } from "./ai";
 import { isPageActive, returnFromResults, showPage } from "./pages";
 
 const filterSelect = getElement<HTMLSelectElement>("feature-filter");
@@ -167,6 +168,25 @@ export function closeResults(): void {
   }
 }
 
+async function initAiVisibility(): Promise<void> {
+  const enabled = await aiIsEnabled();
+  getElement("ai-nl-search").hidden = !enabled;
+}
+
+async function applyNlFilter(query: string): Promise<void> {
+  if (!query) return;
+  try {
+    const filter = await nlFilter(query, aiCategories);
+    if (filter.categories.length === 1) {
+      filterSelect.value = filter.categories[0];
+      state.activeFilter = filter.categories[0];
+    }
+    renderFindings();
+  } catch {
+    // AI unavailable — silently keep the current filter.
+  }
+}
+
 export function initResults(): void {
   filterSelect.addEventListener("change", () => {
     state.activeFilter = filterSelect.value;
@@ -200,6 +220,12 @@ export function initResults(): void {
     renderFindings();
   });
   getElement<HTMLButtonElement>("results-button").addEventListener("click", () => openResults());
+  const nlInput = getElement<HTMLInputElement>("ai-nl-input");
+  nlInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    void applyNlFilter(nlInput.value.trim());
+  });
+  void initAiVisibility();
   closeResultsButton.addEventListener("click", closeResults);
   document.querySelectorAll<HTMLButtonElement>("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => openResults(button.dataset.filter ?? "all"));
