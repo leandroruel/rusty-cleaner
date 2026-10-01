@@ -417,19 +417,29 @@
             </header>
             <div class="settings-panels">
               <section class="settings-panel" data-settings-panel="general">
-                <p class="settings-hint" data-i18n="settings.languageHint">Interface language.</p>
-                <div class="settings-row">
-                  <select id="language-select" data-i18n-aria="settings.language" aria-label="Interface language">
-                    <option value="en">English</option>
-                    <option value="pt-BR">Português (Brasil)</option>
-                  </select>
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-title" data-i18n="settings.languageTitle">Interface language</span>
+                    <span class="settings-card-description" data-i18n="settings.languageHint">Choose the language for menus, dialogs and results.</span>
+                  </div>
+                  <div class="settings-card-control">
+                    <select id="language-select" data-i18n-aria="settings.language" aria-label="Interface language">
+                      <option value="en">English</option>
+                      <option value="pt-BR">Português (Brasil)</option>
+                    </select>
+                  </div>
                 </div>
-                <p class="settings-hint" data-i18n="settings.crashReportsHint">Helps find and fix bugs. No personal data, file paths, or browsing history. Optional per LGPD.</p>
-                <div class="settings-row">
-                  <label class="filter-control check-control">
-                    <input type="checkbox" id="crash-reports-toggle" />
-                    <span data-i18n="settings.crashReports">Send anonymous crash reports</span>
-                  </label>
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-title" data-i18n="settings.crashReports">Crash reports</span>
+                    <span class="settings-card-description" data-i18n="settings.crashReportsHint">Anonymous error reports help find and fix bugs faster.</span>
+                  </div>
+                  <div class="settings-card-control">
+                    <label class="settings-switch">
+                      <input type="checkbox" id="crash-reports-toggle" />
+                      <span class="settings-switch-track"></span>
+                    </label>
+                  </div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="log" hidden>
