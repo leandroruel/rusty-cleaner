@@ -80,18 +80,35 @@ fn has_suffix_segment(path: &str, suffix: &str) -> bool {
         .any(|segment| segment.to_lowercase().ends_with(suffix))
 }
 
+/// True when `Documents` or `Desktop` is a user-profile folder — i.e. one
+/// of the first path segments (`/home/<x>/Documents`, `/Users/<x>/Desktop`,
+/// `C:/Users/<x>/Documents`), not a same-named folder buried inside an app
+/// directory like `App\Documents\cache`.
+fn has_user_documents_segment(path: &str) -> bool {
+    path.split(['/', '\\'])
+        .enumerate()
+        .take(4)
+        .any(|(i, segment)| {
+            i <= 3
+                && (segment.eq_ignore_ascii_case("Documents")
+                    || segment.eq_ignore_ascii_case("Desktop"))
+        })
+}
+
 /// Local path-based risk classification — runs without any API call.
 /// The AI enriches with `why`/`if_deleted`; the badge comes from here.
 pub fn classify_risk(path: &str, category: &str) -> Risk {
     let lower = path.to_lowercase();
+    let segments: Vec<&str> = lower.split(['/', '\\']).collect();
 
-    // Dangerous: credentials, system dirs, user documents (as path segments).
+    // Dangerous: credentials, system dirs, user documents.
     if has_segment(path, ".ssh")
         || has_suffix_segment(&lower, "wallet")
-        || has_segment(&lower, "program files")
+        // Segment starting with "program files" catches both
+        // "Program Files" and "Program Files (x86)".
+        || segments.iter().any(|seg| seg.starts_with("program files"))
         || lower.starts_with("/etc/")
-        || has_segment(path, "Documents")
-        || has_segment(path, "Desktop")
+        || has_user_documents_segment(path)
         || has_segment(path, ".gnupg")
         || has_segment(path, ".kube")
     {
@@ -99,6 +116,7 @@ pub fn classify_risk(path: &str, category: &str) -> Risk {
     }
 
     // Safe: regenerable caches the app rebuilds (as segments or suffixes).
+    // No category shortcut — the path itself must look like a cache.
     if has_suffix_segment(&lower, "cache")
         || has_segment(&lower, "code cache")
         || has_segment(&lower, "gpucache")
@@ -106,7 +124,6 @@ pub fn classify_risk(path: &str, category: &str) -> Risk {
         || has_suffix_segment(&lower, "cachestorage")
         || has_suffix_segment(&lower, "thumbnails")
         || has_suffix_segment(&lower, "wasm")
-        || category == "browser"
         || category == "temp"
     {
         return Risk::Safe;
@@ -214,7 +231,24 @@ fn chat_url(base_url: &str) -> String {
     }
 }
 
-fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<String, String> {
+/// Timeout per call type: connection tests fail fast (20s), NVIDIA NIM
+/// cold starts can take minutes (300s), everything else gets 45s.
+fn timeout_for(settings: &AiSettings, is_test: bool) -> Duration {
+    if is_test {
+        return Duration::from_secs(20);
+    }
+    if settings.base_url.to_lowercase().contains("nvidia.com") {
+        return Duration::from_secs(300);
+    }
+    Duration::from_secs(45)
+}
+
+fn chat_completion(
+    settings: &AiSettings,
+    system: &str,
+    user: &str,
+    is_test: bool,
+) -> Result<String, String> {
     let url = chat_url(&settings.base_url);
     let body = serde_json::json!({
         "model": settings.model,
@@ -230,7 +264,7 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
 
     let request = ureq::post(&url)
         .set("Content-Type", "application/json")
-        .timeout(Duration::from_secs(300));
+        .timeout(timeout_for(settings, is_test));
 
     // Local providers (Ollama, LM Studio) accept an empty Bearer token.
     let request = if settings.api_key.trim().is_empty() {
@@ -298,6 +332,7 @@ pub fn test_connection(settings: &AiSettings) -> Result<String, String> {
         settings,
         "You are a connection test. Reply with exactly this JSON: {\"ok\":true}",
         "Test connection",
+        true,
     )?;
     let parsed: serde_json::Value =
         serde_json::from_str(&reply).map_err(|error| format!("Unexpected reply: {error}"))?;
@@ -357,7 +392,7 @@ pub fn explain_groups(
 
     let system = "You are a disk-cleaning assistant. You receive a JSON array of file groups (path, size, category). Respond with a JSON object: {\"groups\": [{\"id\": <original path>, \"risk\": \"safe\"|\"review\"|\"dangerous\", \"app\": <app name>, \"regenerable\": boolean, \"title\": <≤60 chars>, \"why\": <≤280 chars>, \"ifDeleted\": <≤160 chars>}]}. Rules: caches the app rebuilds = safe. User media and downloads = review. Documents, credentials, system files = dangerous. The \"id\" must be the original path exactly as given.";
 
-    let reply = chat_completion(settings, system, &user)?;
+    let reply = chat_completion(settings, system, &user, false)?;
 
     // Parse {groups: [...]} — json_object response format always wraps in an object.
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&reply) {
@@ -395,7 +430,7 @@ pub fn scan_briefing(settings: &AiSettings, summary: &str) -> Result<ScanBriefin
 
     let system = "You are a disk-cleaning assistant. You receive a summary of scan results (categories, item counts, sizes). Respond with a JSON object: {\"headline\": <≤80 chars>, \"bullets\": [<3-6 short strings>], \"safeGb\": <number>, \"reviewGb\": <number>}. The headline says what the junk is. Bullets explain per category. safeGb = GB safely removable (caches). reviewGb = GB needing review (media, duplicates).";
 
-    let reply = chat_completion(settings, system, summary)?;
+    let reply = chat_completion(settings, system, summary, false)?;
     serde_json::from_str(&reply).map_err(|error| format!("briefing parse: {error}"))
 }
 
@@ -413,7 +448,7 @@ pub fn nl_filter(
         "You translate a natural-language query about disk cleaning into a JSON filter. Valid categories: [{categories_list}]. Respond with a JSON object: {{\"categories\": [subset of valid], \"minAgeDays\": <number or null>, \"minSizeBytes\": <number or null>, \"apps\": [<strings>] or null, \"queryEcho\": <original query>}}. Only use categories from the valid list.",
     );
 
-    let reply = chat_completion(settings, &system, query)?;
+    let reply = chat_completion(settings, &system, query, false)?;
     let mut filter: NlFilter =
         serde_json::from_str(&reply).map_err(|error| format!("filter parse: {error}"))?;
 
@@ -499,6 +534,53 @@ mod tests {
         assert_eq!(
             classify_risk("/home/user/.config/google-chrome/Default/Cache", "browser"),
             Risk::Safe
+        );
+    }
+
+    #[test]
+    fn program_files_x86_is_dangerous() {
+        assert_eq!(
+            classify_risk("C:/Program Files (x86)/SomeApp/app.exe", "orphan"),
+            Risk::Dangerous
+        );
+        assert_eq!(
+            classify_risk("C:/Program Files/SomeApp/app.exe", "orphan"),
+            Risk::Dangerous
+        );
+    }
+
+    #[test]
+    fn browser_finding_without_cache_path_is_not_safe() {
+        // The category alone must not mark a path as safe — the path
+        // itself has to look like a regenerable cache.
+        assert_eq!(
+            classify_risk(
+                "/home/user/.config/google-chrome/Default/Preferences",
+                "browser"
+            ),
+            Risk::Review
+        );
+        assert_eq!(
+            classify_risk("/home/user/.config/google-chrome/Default/Cache", "browser"),
+            Risk::Safe
+        );
+    }
+
+    #[test]
+    fn app_documents_folder_is_not_dangerous() {
+        // `Documents` buried inside an app data dir is not the user's
+        // personal Documents folder — it stays Review.
+        assert_eq!(
+            classify_risk(
+                "C:/Users/user/AppData/Local/SomeApp/Documents/settings.json",
+                "orphan"
+            ),
+            Risk::Review
+        );
+        // The actual user Documents folder is dangerous.
+        assert_eq!(
+            classify_risk("C:/Users/leandro/Documents/report.docx", "orphan"),
+            Risk::Dangerous
         );
     }
 
