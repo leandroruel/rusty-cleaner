@@ -247,7 +247,7 @@ tbody tr:hover { background:rgba(255,255,255,.018); }
 .settings-content-head { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; padding:12px 18px; border-bottom:1px solid var(--border); }
 .settings-content-head h2 { font-size:14px; }
 .settings-panels { flex:1; min-height:0; overflow:auto; padding:18px; scrollbar-width:thin; }
-.settings-panel { max-width:560px; }
+.settings-panel { width:100%; }
 .settings-panel[hidden] { display:none; }
 .about-row { margin-bottom:12px; }
 .about-label { flex:none; color:var(--text-faint); font-size:10px; font-weight:700; }
