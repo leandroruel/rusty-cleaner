@@ -458,3 +458,6 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 .settings-switch input:focus-visible + .settings-switch-track { outline:2px solid var(--cyan); outline-offset:2px; }
 
 .tip-address { font:9px var(--font-mono); letter-spacing:0; user-select:all; }
+
+.tip-icon { display:grid; width:20px; height:20px; flex:none; place-items:center; color:var(--amber); }
+.tip-icon svg { width:16px; height:16px; }
