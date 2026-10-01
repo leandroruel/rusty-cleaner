@@ -222,7 +222,6 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
             {"role": "system", "content": system},
             {"role": "user", "content": user}
         ],
-        "response_format": {"type": "json_object"},
         "temperature": 0.2,
         "max_tokens": 800,
     });
@@ -257,9 +256,20 @@ fn chat_completion(settings: &AiSettings, system: &str, user: &str) -> Result<St
         .and_then(|choice| choice.get("message"))
         .and_then(|message| message.get("content"))
         .and_then(|content| content.as_str())
-        .ok_or("AI response missing choices[0].message.content")?;
+        .or_else(|| {
+            json.get("choices")
+                .and_then(|choices| choices.get(0))
+                .and_then(|choice| choice.get("text"))
+                .and_then(|text| text.as_str())
+        });
 
-    Ok(strip_markdown_fences(content))
+    match content {
+        Some(content) if !content.trim().is_empty() => Ok(strip_markdown_fences(content)),
+        _ => {
+            let preview: String = text.chars().take(300).collect();
+            Err(format!("AI response has no content. Response: {preview}"))
+        }
+    }
 }
 
 /// Strips ```json … ``` fences if the model wrapped the JSON.
