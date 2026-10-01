@@ -153,7 +153,11 @@ async function generateBriefing(elapsed: number): Promise<void> {
     current.size += item.size;
     counts.set(item.feature, current);
   }
+  // Sorted by feature so two scans with identical results produce the
+  // same summary (and hit the cache) even if the parallel walker returns
+  // findings in a different order.
   const summary = [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
     .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
     .join("; ");
 
