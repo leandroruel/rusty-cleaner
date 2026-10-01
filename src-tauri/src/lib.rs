@@ -3,7 +3,6 @@ use rusty_cleaner::{
     scanner::{Feature, Finding},
 };
 
-mod ai;
 mod themes;
 use serde::Serialize;
 use std::{env, path::PathBuf, time::Instant};
@@ -472,85 +471,6 @@ fn installed_themes() -> Vec<themes::ResolvedTheme> {
 #[tauri::command]
 fn delete_theme(id: String) -> Result<(), String> {
     themes::delete(&id)
-}
-
-// ─── AI commands ───────────────────────────────────────────────────
-
-#[tauri::command]
-fn ai_get_settings() -> ai::AiSettings {
-    ai::load_settings()
-}
-
-#[tauri::command]
-fn ai_save_settings(settings: ai::AiSettings) -> Result<(), String> {
-    ai::save_settings(&settings)
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AiGroupInput {
-    path: String,
-    ext_hint: String,
-    bytes: u64,
-    mtime_days: Option<u64>,
-    app_guess: String,
-    category: String,
-}
-
-#[tauri::command]
-async fn ai_explain_groups(groups: Vec<AiGroupInput>) -> Result<Vec<ai::ExplainGroup>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let settings = ai::load_settings();
-        let payload: Vec<ai::GroupPayload> = groups
-            .into_iter()
-            .map(|g| ai::GroupPayload {
-                path: g.path,
-                ext_hint: g.ext_hint,
-                bytes: g.bytes,
-                mtime_days: g.mtime_days,
-                app_guess: g.app_guess,
-                category: g.category,
-            })
-            .collect();
-        ai::explain_groups(&settings, &payload)
-    })
-    .await
-    .map_err(|error| error.to_string())?
-}
-
-#[tauri::command]
-async fn ai_scan_briefing(summary: String) -> Result<ai::ScanBriefing, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let settings = ai::load_settings();
-        ai::scan_briefing(&settings, &summary)
-    })
-    .await
-    .map_err(|error| error.to_string())?
-}
-
-#[tauri::command]
-async fn ai_nl_filter(query: String, categories: Vec<String>) -> Result<ai::NlFilter, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let settings = ai::load_settings();
-        ai::nl_filter(&settings, &query, &categories)
-    })
-    .await
-    .map_err(|error| error.to_string())?
-}
-
-#[tauri::command]
-async fn ai_test_connection() -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(|| {
-        let settings = ai::load_settings();
-        ai::test_connection(&settings)
-    })
-    .await
-    .map_err(|error| error.to_string())?
-}
-
-#[tauri::command]
-fn ai_is_enabled() -> bool {
-    ai::is_enabled()
 }
 
 /// Checks which installed themes have updates available on their remote.
@@ -1074,14 +994,7 @@ pub fn run() {
             delete_theme,
             check_theme_updates,
             open_url,
-            ai_get_settings,
-            ai_save_settings,
-            ai_explain_groups,
-            ai_scan_briefing,
-            ai_nl_filter,
-            ai_test_connection,
-            ai_is_enabled,
-            copy_media_file,
+                                                                                                copy_media_file,
             move_media_file,
             detect_platform,
             detect_theme,

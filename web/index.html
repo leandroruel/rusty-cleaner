@@ -78,17 +78,6 @@
                   <span data-i18n="scan.found">found</span>
                 </div>
               </div>
-              <div class="ai-briefing" id="ai-briefing" hidden>
-              <div class="ai-briefing-head">
-                <span class="ai-briefing-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8c-2 0-3.5 1-3.5 2.5s1.5 2 3 2.2c1.5.2 3 .8 3 2.3S13 17 12 17c-1 0-2-.5-2.5-1.3M12 7V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
-                <div class="ai-briefing-copy">
-                  <span class="ai-briefing-title" id="ai-briefing-title">Scan briefing</span>
-                  <span class="ai-briefing-body" id="ai-briefing-body"></span>
-                  <span class="ai-briefing-error" id="ai-briefing-error" hidden></span>
-                </div>
-                <button type="button" class="ai-briefing-cancel" id="ai-briefing-cancel" data-i18n-aria="confirm.cancel" aria-label="Cancel"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.2" fill="currentColor"/></svg></button>
-              </div>
-            </div>
             <p class="scan-caption" id="scan-caption" data-i18n="scan.none">No scans this session</p>
 
               <div class="scan-progress" id="scan-progress" hidden>
@@ -303,10 +292,6 @@
                     </select>
                   </label>
                   <button class="text-button" id="select-category-button" type="button" data-i18n="results.selectCategory">Select category</button>
-                <label class="filter-control ai-nl-search" id="ai-nl-search" hidden>
-                  <span data-i18n="results.aiSearch">AI</span>
-                  <input type="search" id="ai-nl-input" data-i18n-placeholder="results.aiSearchPlaceholder" placeholder="Describe what to keep…" />
-                </label>
                 </div>
               </div>
               <div class="results-table-wrap">
@@ -417,10 +402,6 @@
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 4.6c0-.66.54-1.2 1.2-1.2h3l1.5 1.6h5.5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3c-.66 0-1.2-.54-1.2-1.2z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
                 <span data-i18n="settings.menu.exclusions">Excluded folders</span>
               </button>
-              <button class="settings-nav-item" type="button" data-settings-target="assistant">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 3a5 5 0 0 1 5 5c0 1.5-.6 2.8-1.7 3.8V13H6.7v-1.2C5.6 10.8 5 9.5 5 8a5 5 0 0 1 3-5Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.5 12.5h3M7 14h2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                <span data-i18n="settings.menu.assistant">Assistant</span>
-              </button>
               <button class="settings-nav-item" type="button" data-settings-target="about">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.4v3.4M8 4.9v.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
                 <span data-i18n="settings.menu.about">About</span>
@@ -480,106 +461,6 @@
                   <button class="button button-quiet" id="exclude-add" type="button" data-i18n="settings.add">Add</button>
                 </div>
                 <ul class="exclude-list" id="exclude-list"></ul>
-              </section>
-              <section class="settings-panel" data-settings-panel="assistant" hidden>
-                <p class="settings-hint" data-i18n="settings.aiHint">Optional. Bring your own key — the app works fully without it. AI runs only after a scan, on aggregated metadata. File contents are never sent.</p>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiToggle">Enable AI assistant</span>
-                    <span class="settings-card-description" data-i18n="settings.aiToggleHint">Explain findings, scan briefings and natural-language search.</span>
-                  </div>
-                  <div class="settings-card-control">
-                    <label class="settings-switch">
-                      <input type="checkbox" id="ai-enabled-toggle" />
-                      <span class="settings-switch-track"></span>
-                    </label>
-                  </div>
-                </div>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiProvider">Provider (OpenAI-compatible)</span>
-                    <span class="settings-card-description" data-i18n="settings.aiProviderHint">Works with OpenAI, Groq, OpenRouter, LM Studio, Ollama and any /chat/completions endpoint.</span>
-                  </div>
-                  <div class="settings-card-control">
-                    <select id="ai-provider-preset">
-                      <option value="">Custom…</option>
-                      <option value="https://api.openai.com/v1" data-model-hint="gpt-4o-mini">OpenAI</option>
-                      <option value="https://api.groq.com/openai/v1" data-model-hint="llama-3.1-8b-instant">Groq</option>
-                      <option value="https://openrouter.ai/api/v1" data-model-hint="mistralai/mistral-small">OpenRouter</option>
-                      <option value="http://localhost:1234/v1" data-model-hint="local-model">LM Studio</option>
-                      <option value="http://localhost:11434/v1" data-model-hint="llama3.1">Ollama</option>
-                      <option value="https://integrate.api.nvidia.com/v1" data-model-hint="meta/llama-3.1-8b-instruct">NVIDIA NIM</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiBaseUrl">Base URL</span>
-                    <span class="settings-card-description">e.g. https://api.openai.com/v1</span>
-                  </div>
-                  <div class="settings-card-control" style="flex:1; max-width:240px;">
-                    <input type="text" id="ai-base-url" placeholder="https://…" />
-                  </div>
-                </div>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiModel">Model</span>
-                    <span class="settings-card-description">e.g. gpt-4o-mini, llama-3.1-8b-instant, mistral-small</span>
-                  </div>
-                  <div class="settings-card-control" style="flex:1; max-width:240px;">
-                    <input type="text" id="ai-model" placeholder="gpt-4o-mini" />
-                  </div>
-                </div>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiApiKey">API key</span>
-                    <span class="settings-card-description" data-i18n="settings.aiApiKeyHint">Stored locally. Never logged, never sent to telemetry.</span>
-                  </div>
-                  <div class="settings-card-control" style="flex:1; max-width:240px;">
-                    <input type="password" id="ai-api-key" placeholder="sk-…" />
-                  </div>
-                </div>
-                <div class="settings-card">
-                  <div class="settings-card-info">
-                    <span class="settings-card-title" data-i18n="settings.aiPaths">Allow sending file paths</span>
-                    <span class="settings-card-description" data-i18n="settings.aiPathsHint">When off, only category + size are sent (less helpful explanations).</span>
-                  </div>
-                  <div class="settings-card-control">
-                    <label class="settings-switch">
-                      <input type="checkbox" id="ai-send-paths" />
-                      <span class="settings-switch-track"></span>
-                    </label>
-                  </div>
-                </div>
-                <div class="settings-row">
-                  <span class="about-status" id="ai-test-status"></span>
-                  <button class="button button-quiet" id="ai-test-button" type="button" data-i18n="settings.aiTest">Test connection</button>
-                </div>
-                <div class="settings-row" style="margin-top:8px;">
-                  <button class="button button-quiet" id="ai-help-toggle" type="button" data-i18n="settings.aiHelp">How to configure</button>
-                </div>
-                <div class="ai-help" id="ai-help" hidden>
-                  <div class="ai-help-step">
-                    <strong data-i18n="settings.aiHelpStep1">1. Get an API key</strong>
-                    <span data-i18n="settings.aiHelpStep1Text">Create a free key from any OpenAI-compatible provider. OpenAI (platform.openai.com), Groq (console.groq.com) and OpenRouter (openrouter.ai) all work. LM Studio and Ollama run locally and need no key.</span>
-                  </div>
-                  <div class="ai-help-step">
-                    <strong data-i18n="settings.aiHelpStep2">2. Pick a model</strong>
-                    <span data-i18n="settings.aiHelpStep2Text">OpenAI: gpt-4o-mini. Groq: llama-3.1-8b-instant. OpenRouter: any model with /api/v1. Ollama: llama3.1 or mistral. The model must support JSON responses.</span>
-                  </div>
-                  <div class="ai-help-step">
-                    <strong data-i18n="settings.aiHelpStep3">3. Paste and test</strong>
-                    <span data-i18n="settings.aiHelpStep3Text">Paste the base URL and key above, pick a model, toggle on, and click "Test connection". If it says Connected, you're done.</span>
-                  </div>
-                  <div class="ai-help-step">
-                    <strong data-i18n="settings.aiHelpStep4">4. What it does</strong>
-                    <span data-i18n="settings.aiHelpStep4Text">After a scan: a briefing card on the Overview explains what the junk is. In the results, the AI search bar filters by description ("browser caches over 50 MB"). Risk badges appear on findings.</span>
-                  </div>
-                  <div class="ai-help-step">
-                    <strong data-i18n="settings.aiHelpStep5">Privacy</strong>
-                    <span data-i18n="settings.aiHelpStep5Text">Only file paths (if allowed), sizes, and categories are sent. File contents, names, and personal data are NEVER sent. The key stays on your machine. Toggle off any time.</span>
-                  </div>
-                </div>
               </section>
               <section class="settings-panel" data-settings-panel="about" hidden>
                 <p class="settings-hint" data-i18n="settings.aboutHint">App version and updates.</p>

@@ -3,7 +3,6 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { captureBackendError } from "./telemetry";
-import { isEnabled as aiIsEnabled, scanBriefing, type ScanBriefing } from "./ai";
 import { number, t } from "./i18n";
 import { formatBytes, formatCount, getElement, platformName, showToast, state, type FeatureKey, type ScanResult } from "./state";
 import { renderFindings } from "./results";
@@ -68,7 +67,6 @@ export async function runScan(): Promise<void> {
   const started = performance.now();
   let platform = "unknown";
   let failed = 0;
-  let elapsed = 0;
 
   try {
     for (const [index, feature] of scanOrder.entries()) {
@@ -94,7 +92,7 @@ export async function runScan(): Promise<void> {
     }
     state.currentScanFeature = null;
 
-    elapsed = (performance.now() - started) / 1000;
+    const elapsed = (performance.now() - started) / 1000;
     resultsButton.disabled = state.findings.length === 0;
     statusLabel.textContent = state.scanCancelled
       ? t("app.cancelled")
@@ -117,116 +115,6 @@ export async function runScan(): Promise<void> {
   if (state.scanCancelled) return;
   revealScanResult();
   void notifyScanComplete();
-  void generateBriefing(elapsed);
-}
-
-/// Briefings cached by the exact summary sent to the model — a repeated
-/// scan with identical results skips the LLM call entirely (no tokens).
-const briefingCache = new Map<string, ScanBriefing>();
-const BRIEFING_CACHE_MAX = 8;
-/// Bumped on every new scan and on cancel — stale replies are discarded.
-let briefingReqId = 0;
-
-function renderBriefing(briefing: ScanBriefing): void {
-  const card = getElement("ai-briefing");
-  card.classList.remove("is-loading");
-  getElement("ai-briefing-title").textContent = briefing.headline;
-  getElement("ai-briefing-body").textContent = briefing.bullets.join(" ");
-  getElement("ai-briefing-error").hidden = true;
-}
-
-/// Shows an AI-generated scan briefing below the ring when the assistant
-/// is enabled. Silently hidden otherwise.
-async function generateBriefing(elapsed: number): Promise<void> {
-  const reqId = ++briefingReqId;
-  const card = getElement("ai-briefing");
-  if (!(await aiIsEnabled())) {
-    card.hidden = true;
-    return;
-  }
-  const briefingBody = getElement("ai-briefing-body");
-  const briefingTitle = getElement("ai-briefing-title");
-  const counts = new Map<string, { count: number; size: number }>();
-  for (const item of state.findings) {
-    const current = counts.get(item.feature) ?? { count: 0, size: 0 };
-    current.count += 1;
-    current.size += item.size;
-    counts.set(item.feature, current);
-  }
-  // Sorted by feature so two scans with identical results produce the
-  // same summary (and hit the cache) even if the parallel walker returns
-  // findings in a different order.
-  const summary = [...counts.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([feature, data]) => `${feature}: ${data.count} items, ${(data.size / 1_048_576).toFixed(0)} MiB`)
-    .join("; ");
-
-  const showLocalBriefing = (): void => {
-    const total = state.findings.reduce((sum, item) => sum + item.size, 0);
-    const totalMiB = (total / 1_048_576).toFixed(0);
-    card.classList.remove("is-loading");
-    getElement("ai-briefing-error").hidden = true;
-    getElement("ai-briefing-title").textContent = t("scan.summary", {
-      count: formatCount(state.findings.length),
-      time: elapsed.toFixed(1).replace(".", ","),
-    });
-    briefingBody.textContent = `${totalMiB} MiB across ${counts.size} categories — ${summary}`;
-  };
-
-  // Surface the AI failure reason in the card — a fallback with no
-  // explanation looks like the feature is just broken.
-  const showError = (message: string): void => {
-    const errorEl = getElement("ai-briefing-error");
-    errorEl.hidden = false;
-    errorEl.textContent = message.slice(0, 180);
-  };
-
-  // Cache hit — identical scan results, reuse the previous reply.
-  const cached = briefingCache.get(summary);
-  if (cached) {
-    card.hidden = false;
-    renderBriefing(cached);
-    return;
-  }
-
-  // Loading state — the LLM takes a few seconds; the spinner plus the
-  // cancel button let the user bail out instead of waiting.
-  briefingTitle.textContent = t("scan.briefingPreparing");
-  briefingBody.textContent = "";
-  getElement("ai-briefing-error").hidden = true;
-  card.classList.add("is-loading");
-  card.hidden = false;
-
-  try {
-    const briefing = await scanBriefing(summary);
-    // Discard stale replies — a newer scan started or the user cancelled.
-    if (reqId !== briefingReqId) return;
-    // Reject meaningless responses — the model may return empty strings
-    // or trivial bullets; the local fallback is better than a blank card.
-    const hasContent = briefing.headline.trim().length >= 8
-      && briefing.bullets.some((bullet) => bullet.trim().length >= 10);
-    if (!hasContent) {
-      console.warn("[briefing] model reply lacked content, using local summary:", briefing);
-      if (reqId !== briefingReqId) return;
-      showLocalBriefing();
-      showError(t("scan.briefingEmpty"));
-      return;
-    }
-    briefingCache.set(summary, briefing);
-    if (briefingCache.size > BRIEFING_CACHE_MAX) {
-      const oldest = briefingCache.keys().next().value;
-      if (oldest !== undefined) briefingCache.delete(oldest);
-    }
-    renderBriefing(briefing);
-  } catch (error) {
-    // Visible in devtools AND in the card — silent failures made briefing
-    // issues undiagnosable.
-    console.warn("[briefing] AI call failed, using local summary:", error);
-    if (reqId !== briefingReqId) return;
-    showLocalBriefing();
-    const message = error instanceof Error ? error.message : String(error);
-    showError(message);
-  }
 }
 
 /// Shows a desktop notification when the scan completes while the window
@@ -430,12 +318,6 @@ function renderFailedScans(): void {
 }
 
 export function initScan(): void {
-  getElement("ai-briefing-cancel").addEventListener("click", () => {
-    briefingReqId++; // invalidate the in-flight request
-    const card = getElement("ai-briefing");
-    card.hidden = true;
-    card.classList.remove("is-loading");
-  });
   scanButton.addEventListener("click", () => {
     if (state.scanning) {
       state.scanCancelled = true;

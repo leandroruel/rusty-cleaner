@@ -468,39 +468,7 @@ html[data-theme="omarchy"]:not([data-community-theme]) .nav-item { border-radius
 /* AI assistant */
 .settings-card-control input[type="text"], .settings-card-control input[type="password"] { min-height:32px; min-width:0; width:100%; padding:5px 9px; border:1px solid var(--border); border-radius:5px; background:var(--panel); color:var(--text); font-size:11px; }
 .settings-card-control select { min-height:32px; min-width:120px; padding:5px 9px; border:1px solid var(--border); border-radius:5px; background:var(--panel); color:var(--text); font-size:11px; }
-.ai-briefing { width:100%; max-width:520px; margin:0 auto 8px; padding:12px 14px; border:1px solid color-mix(in srgb, var(--cyan) 25%, var(--border)); border-radius:8px; background:color-mix(in srgb, var(--cyan) 5%, var(--panel-2)); text-align:left; }
-.ai-briefing[hidden] { display:none; }
-.ai-briefing-head { display:flex; align-items:flex-start; gap:10px; }
-.ai-briefing-icon { flex:none; color:var(--cyan); }
-.ai-briefing-icon svg { width:18px; height:18px; }
-.ai-briefing-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:4px; }
-.ai-briefing-title { color:var(--text); font-size:11px; font-weight:700; }
-.ai-briefing-body { color:var(--text-dim); font-size:10px; line-height:1.5; }
-.ai-briefing-error { color:var(--red); font-size:9px; line-height:1.4; }
-.ai-briefing.is-loading .ai-briefing-icon svg { animation:theme-spin 1s linear infinite; }
-.ai-briefing-cancel { display:none; flex:none; align-self:center; margin:0 0 0 auto; width:26px; height:26px; padding:0; border:none; border-radius:50%; background:transparent; color:var(--text-dim); cursor:pointer; }
-.ai-briefing-cancel svg { display:block; width:16px; height:16px; margin:5px auto; }
-.ai-briefing-cancel:hover { color:var(--text); background:color-mix(in srgb, var(--text) 10%, transparent); }
-.ai-briefing.is-loading .ai-briefing-cancel { display:block; }
-.ai-nl-search input { width:200px; }
-.ai-nl-search[hidden] { display:none; }
-.risk-badge { display:inline-block; padding:2px 6px; border-radius:3px; font:700 9px var(--font-mono); letter-spacing:.05em; }
-.risk-badge-safe { border:1px solid color-mix(in srgb, var(--green) 35%, transparent); color:var(--green); background:color-mix(in srgb, var(--green) 8%, transparent); }
-.risk-badge-review { border:1px solid color-mix(in srgb, var(--amber) 35%, transparent); color:var(--amber); background:color-mix(in srgb, var(--amber) 8%, transparent); }
-.risk-badge-dangerous { border:1px solid color-mix(in srgb, var(--red) 35%, transparent); color:var(--red); background:color-mix(in srgb, var(--red) 8%, transparent); }
-.ai-explain-row { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); }
-.ai-explain-row:last-child { border-bottom:0; }
-.ai-explain-badge { flex:none; margin-top:1px; }
-.ai-explain-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:2px; }
-.ai-explain-title { color:var(--text); font-size:11px; font-weight:700; }
-.ai-explain-why { color:var(--text-dim); font-size:10px; line-height:1.4; }
-.ai-explain-why em { color:var(--text-faint); font-style:normal; }
 
-.ai-help { display:flex; flex-direction:column; gap:10px; margin-top:12px; padding:14px 16px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); }
-.ai-help[hidden] { display:none; }
-.ai-help-step { display:flex; flex-direction:column; gap:3px; }
-.ai-help-step strong { color:var(--text); font-size:11px; }
-.ai-help-step span { color:var(--text-dim); font-size:10px; line-height:1.5; }
 
 /* AI settings: disabled state for all card controls */
 .settings-card-control input:disabled,

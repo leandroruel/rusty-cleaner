@@ -1,6 +1,5 @@
 import { featureColors, featureLabels, formatBytes, formatCount, getElement, state, type Finding } from "./state";
 import { t } from "./i18n";
-import { aiCategories, explainGroups, isEnabled as aiIsEnabled, nlFilter, type ExplainGroup } from "./ai";
 import { isPageActive, returnFromResults, showPage } from "./pages";
 
 const filterSelect = getElement<HTMLSelectElement>("feature-filter");
@@ -141,7 +140,6 @@ export function renderFindings(): void {
   selectAll.checked = visible.length > 0 && selectedVisible.length === visible.length;
   selectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length;
   updateSelectionBar();
-  void renderRiskBadges();
 }
 
 export function updateSelectionBar(): void {
@@ -167,122 +165,6 @@ export function closeResults(): void {
   const origin = returnFromResults();
   if (origin === "overview") {
     getElement<HTMLButtonElement>("results-button").focus();
-  }
-}
-
-async function initAiVisibility(): Promise<void> {
-  const enabled = await aiIsEnabled();
-  getElement("ai-nl-search").hidden = !enabled;
-}
-
-/// Shows risk badges on visible findings — local classifier works even
-/// without the AI; the API just adds richer explanations.
-let riskBadgeTimer = 0;
-
-async function renderRiskBadges(): Promise<void> {
-  // Debounce: renderFindings fires on every keystroke in the search box;
-  // the AI call is expensive, so wait 800ms of silence before rendering.
-  window.clearTimeout(riskBadgeTimer);
-  riskBadgeTimer = window.setTimeout(() => void renderRiskBadgesNow(), 800);
-}
-
-/// AI explanations cached by path — re-renders (search, filter, sort) must
-/// not re-send the same groups to the model. This is what burned through
-/// OpenRouter's 20 req/min free tier in a single session.
-const explainCache = new Map<string, ExplainGroup>();
-const EXPLAIN_CACHE_MAX = 500;
-/// Paths with a request already in flight — never fire duplicates.
-const inFlightExplain = new Set<string>();
-/// Set when the provider answers 429 — hammering it just digs the hole.
-let aiCooldownUntil = 0;
-
-function cacheExplain(groups: ExplainGroup[]): void {
-  for (const group of groups) {
-    inFlightExplain.delete(group.id);
-    explainCache.set(group.id, group);
-  }
-  while (explainCache.size > EXPLAIN_CACHE_MAX) {
-    const oldest = explainCache.keys().next().value;
-    if (oldest === undefined) break;
-    explainCache.delete(oldest);
-  }
-}
-
-async function renderRiskBadgesNow(): Promise<void> {
-  const enabled = await aiIsEnabled();
-  if (!enabled) return;
-  const visible = visibleFindings().slice(0, 50);
-  if (visible.length === 0) return;
-
-  const badgeFor = (item: Finding, explained: ExplainGroup): void => {
-    const row = document.querySelector(
-      `tr[data-path="${CSS.escape(item.path)}"] td:nth-child(3)`,
-    );
-    if (!row) return;
-    const existing = row.querySelector(`[data-risk-for]`);
-    if (existing) existing.remove();
-    const badge = document.createElement("span");
-    badge.className = `risk-badge risk-badge-${explained.risk}`;
-    badge.dataset.riskFor = item.path;
-    badge.title = explained.why;
-    badge.textContent = explained.risk;
-    row.prepend(badge);
-  };
-
-  // Serve from cache first — a re-render with known paths costs zero requests.
-  const uncached: Finding[] = [];
-  for (const item of visible) {
-    const cached = explainCache.get(item.path);
-    if (cached) badgeFor(item, cached);
-    else uncached.push(item);
-  }
-  if (uncached.length === 0) return;
-  if (Date.now() < aiCooldownUntil) return;
-
-  const pending = uncached.filter((item) => !inFlightExplain.has(item.path));
-  if (pending.length === 0) return;
-  for (const item of pending) inFlightExplain.add(item.path);
-
-  try {
-    const groups = pending.map((item) => ({
-      path: item.path,
-      extHint: item.name.split(".").pop() ?? "",
-      bytes: item.size,
-      mtimeDays: item.ageDays,
-      appGuess: item.feature,
-      category: item.feature,
-    }));
-    const explained = await explainGroups(groups);
-    cacheExplain(explained);
-    for (const item of pending) {
-      const found = explainCache.get(item.path);
-      if (found) badgeFor(item, found);
-    }
-  } catch (error) {
-    for (const item of pending) inFlightExplain.delete(item.path);
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("429")) {
-      aiCooldownUntil = Date.now() + 60_000;
-      console.warn("[ai] rate limited — pausing badge requests for 60s");
-    }
-  }
-}
-
-async function applyNlFilter(query: string): Promise<void> {
-  if (!query) return;
-  try {
-    const filter = await nlFilter(query, aiCategories);
-    if (filter.categories.length === 1) {
-      filterSelect.value = filter.categories[0];
-      state.activeFilter = filter.categories[0];
-    } else if (filter.categories.length > 1) {
-      // Multiple categories: apply the first and note the rest.
-      filterSelect.value = filter.categories[0];
-      state.activeFilter = filter.categories[0];
-    }
-    renderFindings();
-  } catch {
-    // AI unavailable — silently keep the current filter.
   }
 }
 
@@ -319,13 +201,6 @@ export function initResults(): void {
     renderFindings();
   });
   getElement<HTMLButtonElement>("results-button").addEventListener("click", () => openResults());
-  const nlInput = getElement<HTMLInputElement>("ai-nl-input");
-  nlInput.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    void applyNlFilter(nlInput.value.trim());
-  });
-  void initAiVisibility();
-  void renderRiskBadges();
   closeResultsButton.addEventListener("click", closeResults);
   document.querySelectorAll<HTMLButtonElement>("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => openResults(button.dataset.filter ?? "all"));

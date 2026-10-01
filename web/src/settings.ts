@@ -5,7 +5,6 @@ import { getLocale, setLocale, t, type Locale } from "./i18n";
 import { getElement, showToast } from "./state";
 import { refreshThemesPanel } from "./themes";
 import { isOptedIn, setOptedIn } from "./telemetry";
-import { getSettings as getAiSettings, saveSettings as saveAiSettings, testConnection, type AiSettings } from "./ai";
 
 
 const settingsButton = getElement<HTMLButtonElement>("settings-button");
@@ -22,14 +21,6 @@ const excludeBrowse = getElement<HTMLButtonElement>("exclude-browse");
 const excludeList = getElement<HTMLUListElement>("exclude-list");
 const languageSelect = getElement<HTMLSelectElement>("language-select");
 const crashReportsToggle = getElement<HTMLInputElement>("crash-reports-toggle");
-const aiEnabledToggle = getElement<HTMLInputElement>("ai-enabled-toggle");
-const aiBaseUrl = getElement<HTMLInputElement>("ai-base-url");
-const aiModel = getElement<HTMLInputElement>("ai-model");
-const aiApiKey = getElement<HTMLInputElement>("ai-api-key");
-const aiSendPaths = getElement<HTMLInputElement>("ai-send-paths");
-const aiProviderPreset = getElement<HTMLSelectElement>("ai-provider-preset");
-const aiTestButton = getElement<HTMLButtonElement>("ai-test-button");
-const aiTestStatus = getElement<HTMLElement>("ai-test-status");
 const aboutVersion = getElement<HTMLElement>("about-version");
 const aboutStatus = getElement<HTMLElement>("about-update-status");
 const checkUpdateButton = getElement<HTMLButtonElement>("check-update-button");
@@ -58,7 +49,6 @@ async function openSettings(): Promise<void> {
   settingsClose.focus();
   languageSelect.value = getLocale();
   crashReportsToggle.checked = isOptedIn();
-  void loadAiSettings();
   resetUpdateControls();
   selectSection(activeSection);
   if (!isTauri()) return;
@@ -176,77 +166,6 @@ function openPrivacyPolicy(): void {
   }
 }
 
-async function loadAiSettings(): Promise<void> {
-  try {
-    const settings = await getAiSettings();
-    aiEnabledToggle.checked = settings.enabled;
-    aiBaseUrl.value = settings.baseUrl;
-    aiModel.value = settings.model;
-    aiApiKey.value = settings.apiKey;
-    aiSendPaths.checked = settings.sendPaths;
-    // Restore the provider preset from the saved base URL.
-    const match = [...aiProviderPreset.options].find(
-      (option) => option.value && option.value === settings.baseUrl,
-    );
-    aiProviderPreset.value = match ? settings.baseUrl : "";
-  } catch {
-    // Settings unavailable — leave fields empty.
-  }
-  syncAiFields();
-}
-
-/// Disables every AI field while the master toggle is off, so the user
-/// can't configure a provider that will never be used.
-function syncAiFields(): void {
-  const enabled = aiEnabledToggle.checked;
-  for (const element of [aiBaseUrl, aiModel, aiApiKey, aiSendPaths]) {
-    element.disabled = !enabled;
-  }
-  aiProviderPreset.disabled = !enabled;
-  aiTestButton.disabled = !enabled;
-  aiTestStatus.textContent = "";
-}
-
-async function saveAi(): Promise<void> {
-  const settings: AiSettings = {
-    enabled: aiEnabledToggle.checked,
-    baseUrl: aiBaseUrl.value.trim(),
-    model: aiModel.value.trim(),
-    apiKey: aiApiKey.value.trim(),
-    sendPaths: aiSendPaths.checked,
-  };
-  try {
-    await saveAiSettings(settings);
-  } catch (error) {
-    showToast(String(error));
-  }
-}
-
-let aiTesting = false;
-
-async function testAi(): Promise<void> {
-  if (aiTesting) return;
-  aiTesting = true;
-  const originalLabel = aiTestButton.textContent;
-  aiTestButton.disabled = true;
-  aiTestButton.classList.add("theme-downloading");
-  aiTestButton.textContent = t("settings.testing");
-  aiTestStatus.textContent = "";
-  try {
-    await saveAi();
-    const message = await testConnection();
-    aiTestStatus.textContent = message;
-  } catch (error) {
-    aiTestStatus.textContent = String(error);
-    showToast(String(error));
-  } finally {
-    aiTesting = false;
-    aiTestButton.classList.remove("theme-downloading");
-    aiTestButton.textContent = originalLabel;
-    aiTestButton.disabled = !aiEnabledToggle.checked;
-  }
-}
-
 export function initSettings(onLocaleChange: () => void): void {
   settingsButton.addEventListener("click", () => void openSettings());
   settingsClose.addEventListener("click", () => { settingsOverlay.hidden = true; });
@@ -273,28 +192,6 @@ export function initSettings(onLocaleChange: () => void): void {
   });
   crashReportsToggle.addEventListener("change", () => {
     setOptedIn(crashReportsToggle.checked);
-  });
-  aiEnabledToggle.addEventListener("change", () => {
-    syncAiFields();
-    void saveAi();
-  });
-  aiBaseUrl.addEventListener("change", () => void saveAi());
-  aiModel.addEventListener("change", () => void saveAi());
-  aiApiKey.addEventListener("change", () => void saveAi());
-  aiSendPaths.addEventListener("change", () => void saveAi());
-  aiProviderPreset.addEventListener("change", () => {
-    if (!aiProviderPreset.value) return;
-    aiBaseUrl.value = aiProviderPreset.value;
-    const hint = aiProviderPreset.selectedOptions[0]?.dataset.modelHint;
-    if (hint && !aiModel.value.trim()) {
-      aiModel.placeholder = hint;
-    }
-    void saveAi();
-  });
-  aiTestButton.addEventListener("click", () => void testAi());
-  getElement<HTMLButtonElement>("ai-help-toggle").addEventListener("click", () => {
-    const help = getElement("ai-help");
-    help.hidden = !help.hidden;
   });
   languageSelect.addEventListener("change", () => {
     setLocale(languageSelect.value as Locale);
