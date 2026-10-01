@@ -184,6 +184,11 @@ async function loadAiSettings(): Promise<void> {
     aiModel.value = settings.model;
     aiApiKey.value = settings.apiKey;
     aiSendPaths.checked = settings.sendPaths;
+    // Restore the provider preset from the saved base URL.
+    const match = [...aiProviderPreset.options].find(
+      (option) => option.value && option.value === settings.baseUrl,
+    );
+    aiProviderPreset.value = match ? settings.baseUrl : "";
   } catch {
     // Settings unavailable — leave fields empty.
   }
